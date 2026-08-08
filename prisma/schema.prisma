@@ -1,0 +1,220 @@
+generator client {
+  provider     = "prisma-client-js"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  email     String   @unique
+  username  String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  events         Event[]         @relation(name: "EventToUser")
+  orders         Order[]         @relation(name: "OrderToUser")
+  ticketLogs     TicketLog[]     @relation(name: "TicketLogToUser")
+  admissionScans AdmissionScan[] @relation(name: "AdmissionScanToUser")
+
+  @@map("users")
+}
+
+model Event {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizerId    String   @map("organizer_id") @db.Uuid
+  name           String
+  isSeated       Boolean  @map("is_seated")
+  salesStartTime DateTime @map("sales_start_time")
+  salesEndTime   DateTime @map("sales_end_time")
+  eventDate      DateTime @map("event_date")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organizer  User             @relation(name: "EventToUser", fields: [organizerId], references: [id])
+  categories TicketCategory[] @relation(name: "EventToTicketCategory")
+  gates      Gate[]           @relation(name: "EventToGate")
+
+  @@map("events")
+}
+
+model TicketCategory {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  eventId    String   @map("event_id") @db.Uuid
+  name       String
+  price      Int
+  totalQuota Int      @map("total_quota")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  event   Event    @relation(name: "EventToTicketCategory", fields: [eventId], references: [id])
+  seats   Seat[]   @relation(name: "SeatToTicketCategory")
+  tickets Ticket[] @relation(name: "TicketToTicketCategory")
+
+  @@map("ticket_categories")
+}
+
+model Seat {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
+  seatCode   String   @map("seat_code")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  category TicketCategory @relation(name: "SeatToTicketCategory", fields: [categoryId], references: [id])
+  ticket   Ticket?        @relation(name: "SeatToTicket")
+
+  @@unique([categoryId, seatCode])
+  @@map("seats")
+}
+
+model Order {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  customerId  String      @map("customer_id") @db.Uuid
+  totalAmount Int         @map("total_amount")
+  status      OrderStatus @default(PAYMENT_PENDING)
+  expiresAt   DateTime    @map("expires_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  customer User      @relation(name: "OrderToUser", fields: [customerId], references: [id])
+  tickets  Ticket[]  @relation(name: "OrderToTicket")
+  payments Payment[] @relation(name: "OrderToPayment")
+  refund   Refund?   @relation(name: "OrderToRefund")
+
+  @@map("orders")
+}
+
+model Ticket {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  orderId    String?      @map("order_id") @db.Uuid
+  categoryId String       @map("category_id") @db.Uuid
+  seatId     String?      @unique @map("seat_id") @db.Uuid
+  status     TicketStatus @default(AVAILABLE)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  order    Order?         @relation(name: "OrderToTicket", fields: [orderId], references: [id])
+  category TicketCategory @relation(name: "TicketToTicketCategory", fields: [categoryId], references: [id])
+  seat     Seat?          @relation(name: "SeatToTicket", fields: [seatId], references: [id])
+  logs     TicketLog[]    @relation(name: "TicketToTicketLog")
+  scan     AdmissionScan? @relation(name: "AdmissionScanToTicket")
+
+  @@index([categoryId, status])
+  @@map("tickets")
+}
+
+model Payment {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  orderId       String        @map("order_id") @db.Uuid
+  providerTrxId String        @unique @map("provider_trx_id")
+  amount        Int
+  method        PaymentMethod @map("payment_method")
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?     @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  order Order @relation(name: "OrderToPayment", fields: [orderId], references: [id])
+
+  @@map("payments")
+}
+
+model Refund {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  orderId   String   @unique @map("order_id") @db.Uuid
+  amount    Int
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  order Order @relation(name: "OrderToRefund", fields: [orderId], references: [id])
+
+  @@map("refunds")
+}
+
+model TicketLog {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  ticketId       String       @map("ticket_id") @db.Uuid
+  changedById    String?      @map("changed_by_id") @db.Uuid
+  previousStatus TicketStatus @map("previous_status")
+  newStatus      TicketStatus @map("new_status")
+  reason         String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  ticket    Ticket @relation(name: "TicketToTicketLog", fields: [ticketId], references: [id])
+  changedBy User?  @relation(name: "TicketLogToUser", fields: [changedById], references: [id])
+
+  @@map("ticket_logs")
+}
+
+model AdmissionScan {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  ticketId       String   @unique @map("ticket_id") @db.Uuid
+  gateOperatorId String   @map("gate_operator_id") @db.Uuid
+  gateId         String   @map("gate_id") @db.Uuid
+  scannedAt      DateTime @default(now()) @map("scanned_at")
+
+  ticket       Ticket @relation(name: "AdmissionScanToTicket", fields: [ticketId], references: [id])
+  gateOperator User   @relation(name: "AdmissionScanToUser", fields: [gateOperatorId], references: [id])
+  gate         Gate   @relation(name: "AdmissionScanToGate", fields: [gateId], references: [id])
+
+  @@index([ticketId])
+  @@map("admission_scans")
+}
+
+enum Role {
+  CUSTOMER
+  ORGANIZER
+  GATE_OPERATOR
+  ADMIN
+}
+
+enum TicketStatus {
+  AVAILABLE
+  EXPIRED
+  SEATED //sold aja mungkin karena kalau seated seakan akan sudah gabisa di refund?
+}
+
+enum OrderStatus {
+  HELD
+  PAYMENT_PENDING
+  PAID
+  REFUND_REQUESTED
+  REFUNDED
+  REFUND_REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// enum RefundStatus {
+//   PENDING
+//   SUCCESS
+//   FAILED
+// }
+
+enum PaymentMethod {
+  VIRTUAL_ACCOUNT
+  E_WALLET
+  QRIS
+}
+
+model Gate {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  eventId   String   @map("event_id") @db.Uuid
+  name      String 
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event Event           @relation(name: "EventToGate", fields: [eventId], references: [id])
+  scans AdmissionScan[] @relation(name: "AdmissionScanToGate")
+
+  @@map("gates")
+}
