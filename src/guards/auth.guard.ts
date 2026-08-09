@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { PUBLIC_KEY } from 'src/decorators/public.decorator';
-import { UserRole } from 'src/utils/user_role';
+import { Role } from '@prisma/client';
 import { USER_ROLE_EXT_DECORATOR_KEY } from 'src/decorators/user_role_ext.decorator';
 import { Request } from 'express';
 
@@ -19,7 +19,7 @@ export class AuthGuard implements CanActivate {
         context.getClass()
       ])
 
-      const roles = this.reflector.getAllAndOverride<Array<UserRole>>(USER_ROLE_EXT_DECORATOR_KEY,[
+      const roles = this.reflector.getAllAndOverride<Array<Role>>(USER_ROLE_EXT_DECORATOR_KEY,[
         context.getHandler(),
         context.getClass()
       ])
