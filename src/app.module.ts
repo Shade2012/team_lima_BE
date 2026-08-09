@@ -5,10 +5,9 @@ import { ExampleSwaggerModule } from './features/example_swagger/example_swagger
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
 import { PrismaModule } from './prisma/prisma.module.js';
-import { SwaggerModule } from '@nestjs/swagger';
 
 @Module({
-  imports: [PrismaModule, SwaggerModule],
+  imports: [PrismaModule, ExampleSwaggerModule],
   controllers: [AppController],
   providers: [
     AppService,
