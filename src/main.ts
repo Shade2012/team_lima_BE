@@ -1,7 +1,8 @@
 import { NestFactory, Reflector } from '@nestjs/core';
+import 'dotenv/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ClassSerializerInterceptor } from '@nestjs/common';
+import { BadRequestException, ClassSerializerInterceptor, ValidationError, ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,6 +13,20 @@ async function bootstrap() {
   .addTag('App')
   .build()
 
+  app.useGlobalPipes(
+  new ValidationPipe({
+    transform:true,
+    whitelist:true,
+    exceptionFactory: (validationErrors: ValidationError[] = []) => {
+      return new BadRequestException(
+        validationErrors.map((error) => ({
+          field: error.property,
+          error: Object.values(error.constraints ?? "").join(', '),
+          })),
+        );
+      },
+    }),
+  );
 
   const documentFactory = SwaggerModule.createDocument(app, config)
   SwaggerModule.setup('api', app, documentFactory)

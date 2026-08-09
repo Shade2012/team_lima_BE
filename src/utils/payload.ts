@@ -1,32 +1,28 @@
-import { UserRole } from "./user_role";
+import { Role } from '@prisma/client';
 
 export class Payload{
-    sub!:number
-    email!:string
-    userRoleId!:number
-    role!:UserRole
+    sub!:string
+    username!:string
+    role!:Role
 
-    constructor(sub:number,email:string,userRoleId:number,role:UserRole) {
+    constructor(sub:string,username:string,role:Role) {
         this.sub =sub;
-        this.userRoleId = userRoleId
-        this.email =email;
+        this.username =username;
         this.role =role
     }  
 
     toObject() {
       return {
         sub: this.sub,
-        email: this.email,
-        userRoleId: this.userRoleId,
+        username: this.username,
         role: this.role,
       };
     }
 
     static toEntity(value:object): Payload{
       const sub = value['user']?.sub ?? -1
-      const email = value['user']?.email ?? null
+      const username = value['user']?.username ?? null
       const role =  value['user']?.role ?? null
-      const userRoleId =  value['user']?.userRoleId ?? null
-      return new Payload(sub,email,userRoleId,role)
+      return new Payload(sub,username,role)
     }
 }
