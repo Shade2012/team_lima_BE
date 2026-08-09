@@ -8,13 +8,13 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  email     String   @unique
-  username  String   @unique
-  password  String
-  role      Role
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String          @id @default(uuid(7)) @db.Uuid
+  email          String          @unique
+  username       String          @unique
+  password       String
+  role           Role
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
 
   events         Event[]         @relation(name: "EventToUser")
   orders         Order[]         @relation(name: "OrderToUser")
@@ -25,20 +25,27 @@ model User {
 }
 
 model Event {
-  id             String   @id @default(uuid(7)) @db.Uuid
-  organizerId    String   @map("organizer_id") @db.Uuid
-  name           String
-  isSeated       Boolean  @map("is_seated")
-  salesStartTime DateTime @map("sales_start_time")
-  salesEndTime   DateTime @map("sales_end_time")
-  eventDate      DateTime @map("event_date")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id               String           @id @default(uuid(7)) @db.Uuid
+  organizerId      String           @map("organizer_id") @db.Uuid
+  name             String
+  isSeated         Boolean          @map("is_seated")
+  salesStartTime   DateTime         @map("sales_start_time")
+  salesEndTime     DateTime         @map("sales_end_time")
+  eventDate        DateTime         @map("event_date")
+  refundEndDate    DateTime         @map("refund_end_date")
+  
+  refundPolicy     String           @db.Text @map("refund_policy")
+  refundPercentage Int              @map("refund_percentage") 
+  
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  organizer  User             @relation(name: "EventToUser", fields: [organizerId], references: [id])
-  categories TicketCategory[] @relation(name: "EventToTicketCategory")
-  gates      Gate[]           @relation(name: "EventToGate")
+  organizer        User             @relation(name: "EventToUser", fields: [organizerId], references: [id])
+  categories       TicketCategory[] @relation(name: "EventToTicketCategory")
+  gates            Gate[]           @relation(name: "EventToGate")
 
+  @@index([organizerId])
+  @@index([salesStartTime, salesEndTime])
   @@map("events")
 }
 
@@ -51,21 +58,22 @@ model TicketCategory {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  event   Event    @relation(name: "EventToTicketCategory", fields: [eventId], references: [id])
-  seats   Seat[]   @relation(name: "SeatToTicketCategory")
-  tickets Ticket[] @relation(name: "TicketToTicketCategory")
+  event      Event    @relation(name: "EventToTicketCategory", fields: [eventId], references: [id])
+  seats      Seat[]   @relation(name: "SeatToTicketCategory")
+  tickets    Ticket[] @relation(name: "TicketToTicketCategory")
 
+  @@index([eventId])
   @@map("ticket_categories")
 }
 
 model Seat {
-  id         String   @id @default(uuid(7)) @db.Uuid
-  categoryId String   @map("category_id") @db.Uuid
-  seatCode   String   @map("seat_code")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id         String         @id @default(uuid(7)) @db.Uuid
+  categoryId String         @map("category_id") @db.Uuid
+  seatCode   String         @map("seat_code")
+  createdAt  DateTime       @default(now()) @map("created_at")
 
-  category TicketCategory @relation(name: "SeatToTicketCategory", fields: [categoryId], references: [id])
-  ticket   Ticket?        @relation(name: "SeatToTicket")
+  category   TicketCategory @relation(name: "SeatToTicketCategory", fields: [categoryId], references: [id])
+  ticket     Ticket[]       @relation(name: "SeatToTicket")
 
   @@unique([categoryId, seatCode])
   @@map("seats")
@@ -75,35 +83,41 @@ model Order {
   id          String      @id @default(uuid(7)) @db.Uuid
   customerId  String      @map("customer_id") @db.Uuid
   totalAmount Int         @map("total_amount")
-  status      OrderStatus @default(PAYMENT_PENDING)
+  status      OrderStatus @default(HELD)
   expiresAt   DateTime    @map("expires_at")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
-  customer User      @relation(name: "OrderToUser", fields: [customerId], references: [id])
-  tickets  Ticket[]  @relation(name: "OrderToTicket")
-  payments Payment[] @relation(name: "OrderToPayment")
-  refund   Refund?   @relation(name: "OrderToRefund")
+  customer    User        @relation(name: "OrderToUser", fields: [customerId], references: [id])
+  tickets     Ticket[]    @relation(name: "OrderToTicket")
+  payments    Payment[]   @relation(name: "OrderToPayment")
 
+  @@index([customerId])
+  @@index([status, expiresAt])
   @@map("orders")
 }
 
 model Ticket {
-  id         String       @id @default(uuid(7)) @db.Uuid
-  orderId    String?      @map("order_id") @db.Uuid
-  categoryId String       @map("category_id") @db.Uuid
-  seatId     String?      @unique @map("seat_id") @db.Uuid
-  status     TicketStatus @default(AVAILABLE)
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
+  id         String          @id @default(uuid(7)) @db.Uuid
+  orderId    String          @map("order_id") @db.Uuid
+  
+  categoryId String          @map("category_id") @db.Uuid
+  seatId     String?         @map("seat_id") @db.Uuid
+  status     TicketStatus    @default(AVAILABLE)
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
 
-  order    Order?         @relation(name: "OrderToTicket", fields: [orderId], references: [id])
-  category TicketCategory @relation(name: "TicketToTicketCategory", fields: [categoryId], references: [id])
-  seat     Seat?          @relation(name: "SeatToTicket", fields: [seatId], references: [id])
-  logs     TicketLog[]    @relation(name: "TicketToTicketLog")
-  scan     AdmissionScan? @relation(name: "AdmissionScanToTicket")
+  order      Order           @relation(name: "OrderToTicket", fields: [orderId], references: [id])
+  category   TicketCategory  @relation(name: "TicketToTicketCategory", fields: [categoryId], references: [id])
+  seat       Seat?           @relation(name: "SeatToTicket", fields: [seatId], references: [id])
+  logs       TicketLog[]     @relation(name: "TicketToTicketLog")
+  scan       AdmissionScan?  @relation(name: "AdmissionScanToTicket")
+  
+  refund     Refund?         @relation(name: "RefundToTicket") 
 
+  @@index([orderId])
   @@index([categoryId, status])
+  @@index([seatId, status])
   @@map("tickets")
 }
 
@@ -118,20 +132,21 @@ model Payment {
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  order Order @relation(name: "OrderToPayment", fields: [orderId], references: [id])
+  order         Order         @relation(name: "OrderToPayment", fields: [orderId], references: [id])
 
+  @@index([orderId])
   @@map("payments")
 }
 
 model Refund {
   id        String   @id @default(uuid(7)) @db.Uuid
-  orderId   String   @unique @map("order_id") @db.Uuid
+  reason    String?     
   amount    Int
-  reason    String?
+  ticketId  String   @unique @map("ticket_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  order Order @relation(name: "OrderToRefund", fields: [orderId], references: [id])
+  ticket    Ticket   @relation(name: "RefundToTicket", fields: [ticketId], references: [id])
 
   @@map("refunds")
 }
@@ -145,9 +160,10 @@ model TicketLog {
   reason         String?
   createdAt      DateTime     @default(now()) @map("created_at")
 
-  ticket    Ticket @relation(name: "TicketToTicketLog", fields: [ticketId], references: [id])
-  changedBy User?  @relation(name: "TicketLogToUser", fields: [changedById], references: [id])
+  ticket         Ticket       @relation(name: "TicketToTicketLog", fields: [ticketId], references: [id])
+  changedBy      User?        @relation(name: "TicketLogToUser", fields: [changedById], references: [id])
 
+  @@index([ticketId])
   @@map("ticket_logs")
 }
 
@@ -158,12 +174,26 @@ model AdmissionScan {
   gateId         String   @map("gate_id") @db.Uuid
   scannedAt      DateTime @default(now()) @map("scanned_at")
 
-  ticket       Ticket @relation(name: "AdmissionScanToTicket", fields: [ticketId], references: [id])
-  gateOperator User   @relation(name: "AdmissionScanToUser", fields: [gateOperatorId], references: [id])
-  gate         Gate   @relation(name: "AdmissionScanToGate", fields: [gateId], references: [id])
+  ticket         Ticket   @relation(name: "AdmissionScanToTicket", fields: [ticketId], references: [id])
+  gateOperator   User     @relation(name: "AdmissionScanToUser", fields: [gateOperatorId], references: [id])
+  gate           Gate     @relation(name: "AdmissionScanToGate", fields: [gateId], references: [id])
 
-  @@index([ticketId])
+  @@index([gateId])
   @@map("admission_scans")
+}
+
+model Gate {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  eventId   String          @map("event_id") @db.Uuid
+  name      String 
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  event     Event           @relation(name: "EventToGate", fields: [eventId], references: [id])
+  scans     AdmissionScan[] @relation(name: "AdmissionScanToGate")
+
+  @@index([eventId])
+  @@map("gates")
 }
 
 enum Role {
@@ -175,17 +205,17 @@ enum Role {
 
 enum TicketStatus {
   AVAILABLE
+  SEATED
   EXPIRED
-  SEATED //sold aja mungkin karena kalau seated seakan akan sudah gabisa di refund?
+  REFUND
 }
 
 enum OrderStatus {
   HELD
   PAYMENT_PENDING
   PAID
-  REFUND_REQUESTED
-  REFUNDED
-  REFUND_REJECTED
+  FULL_REFUND
+  PARTIAL_REFUND
 }
 
 enum PaymentStatus {
@@ -194,27 +224,8 @@ enum PaymentStatus {
   FAILED
 }
 
-// enum RefundStatus {
-//   PENDING
-//   SUCCESS
-//   FAILED
-// }
-
 enum PaymentMethod {
   VIRTUAL_ACCOUNT
   E_WALLET
   QRIS
-}
-
-model Gate {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  eventId   String   @map("event_id") @db.Uuid
-  name      String 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  event Event           @relation(name: "EventToGate", fields: [eventId], references: [id])
-  scans AdmissionScan[] @relation(name: "AdmissionScanToGate")
-
-  @@map("gates")
 }
