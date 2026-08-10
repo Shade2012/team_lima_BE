@@ -1,4 +1,5 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
+import { ValidationError } from 'class-validator';
 
 @Catch()
 export class HttpExceptionFilter<T> implements ExceptionFilter {
@@ -18,6 +19,11 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
         message = exception.message;
       }
     }
+
+    if (exception instanceof ValidationError){
+      status = HttpStatus.BAD_REQUEST
+    }
+    
     response.status(status).send({
       status_code: status,
       message : message,

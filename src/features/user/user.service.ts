@@ -7,7 +7,6 @@ import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { LoginUserDto } from './dto/login-user-dto';
 import { Payload } from 'src/utils/payload';
-import { log } from 'console';
 
 @Injectable()
 export class UserService {
@@ -17,15 +16,6 @@ export class UserService {
   ) {}
 
   async create(dto: CreateUserDto): Promise<User> {
-    const result = await this.prisma.$queryRaw`
-  SELECT
-    current_database(),
-    current_schema(),
-    inet_server_addr(),
-    inet_server_port()
-`;
-
-log(result)
     const model = this.prisma.user;
     const hash = await this.hashPassword(dto.password)
     return model.create({
