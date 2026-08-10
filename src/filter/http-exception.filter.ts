@@ -1,6 +1,6 @@
+
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { ValidationError } from 'class-validator';
-
 @Catch()
 export class HttpExceptionFilter<T> implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);

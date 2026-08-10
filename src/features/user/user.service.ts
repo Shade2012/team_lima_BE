@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { LoginUserDto } from './dto/login-user-dto';
 import { Payload } from 'src/utils/payload';
+import { log } from 'console';
 
 @Injectable()
 export class UserService {

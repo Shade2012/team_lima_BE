@@ -5,11 +5,11 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user-dto';
 import { PayloadJWT } from 'src/decorators/payload_jwt.decorator';
 import { Payload } from 'src/utils/payload';
-import { ApiBearerAuth, ApiCreatedResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Public } from 'src/decorators/public.decorator';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserResponseDto } from './response/user.response';
 import { ApiSuccessResponse, PrimitiveType } from 'src/decorators/api-success-response.decorator';
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
+import { Public } from 'src/decorators/public.decorator';
 
 @ApiTags('User')
 @Controller('users')
@@ -42,25 +42,20 @@ export class UserController {
   @Get('profile')
   @ApiSuccessResponse(UserResponseDto)
   @ApiFailureResponse(401,'User not found')
+  @Get('profile')
   profile(
     @PayloadJWT() payload:Payload
   ){
     return this.userService.profile(payload.sub);
   }
 
+
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Create a user',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'User deleted successfully',
-    type: UserResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid request',
-  })
+  @ApiSuccessResponse(PrimitiveType.STRING,200,'User deleted successfully')
+  @ApiFailureResponse(400,'Invalid request')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.userService.remove(+id);
