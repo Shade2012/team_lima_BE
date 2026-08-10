@@ -8,7 +8,9 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthGuard } from './guards/auth.guard';
 import { UserModule } from './features/user/user.module';
 import { JwtModule } from '@nestjs/jwt';
+import { BullModule } from '@nestjs/bullmq';
 import { HttpExceptionFilter } from './filter/http-exception.filter';
+import { env } from 'process';
 
 @Module({
   imports: [
@@ -17,6 +19,12 @@ import { HttpExceptionFilter } from './filter/http-exception.filter';
       global: true,
       signOptions:{
         expiresIn:'1d'
+      }
+    }),
+    BullModule.forRoot({
+      connection:{
+        host: process.env.REDIS_HOST,
+        port: Number(process.env.REDIS_PORT),
       }
     }),
     PrismaModule, ExampleSwaggerModule, UserModule

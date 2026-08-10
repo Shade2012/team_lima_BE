@@ -1,8 +1,9 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { ValidationError } from 'class-validator';
 
 @Catch()
 export class HttpExceptionFilter<T> implements ExceptionFilter {
+  private readonly logger = new Logger(HttpExceptionFilter.name);
   catch(exception: T, host: ArgumentsHost) {
     const ctx = host.switchToHttp()
     const response = ctx.getResponse();
@@ -23,7 +24,9 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
     if (exception instanceof ValidationError){
       status = HttpStatus.BAD_REQUEST
     }
-    
+
+    this.logger.error(exception);
+
     response.status(status).send({
       status_code: status,
       message : message,
