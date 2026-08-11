@@ -10,6 +10,9 @@ import { UserResponseDto } from './response/user.response';
 import { ApiSuccessResponse, PrimitiveType } from 'src/decorators/api-success-response.decorator';
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
 import { Public } from 'src/decorators/public.decorator';
+import { JwtAccessToken } from 'src/decorators/jwt.-access-token.decorator';
+import { CreateGateOperatorDto } from './dto/create-gate-operator.dto';
+import { GateOperatorResponseDto } from './response/gate-operator.response.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -28,6 +31,19 @@ export class UserController {
   }
 
   @Public()
+  @Post('register/gate-operator')
+  @ApiOperation({
+    summary: 'Create a gate operator',
+    description:'Belum kelar',
+  })
+  @ApiSuccessResponse(GateOperatorResponseDto,201)
+  @ApiFailureResponse(400,'Invalid request')
+  createGateOperator(@Body() createGateOperatorDto: CreateGateOperatorDto) {
+    return this.userService.createGateOperator(createGateOperatorDto);
+  }
+
+
+  @Public()
   @Post('login')
   @ApiOperation({
     summary: 'Login as user',
@@ -39,7 +55,9 @@ export class UserController {
   }
 
   @ApiBearerAuth()
-  @Get('profile')
+  @ApiOperation({
+    summary:'Get profile user'
+  })
   @ApiSuccessResponse(UserResponseDto)
   @ApiFailureResponse(401,'User not found')
   @Get('profile')
@@ -49,15 +67,44 @@ export class UserController {
     return this.userService.profile(payload.sub);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:'Logout user'
+  })
+  @ApiSuccessResponse(PrimitiveType.BOOLEAN,200)
+  @ApiFailureResponse(401,'User not found')
+  @Post('logout')
+  logout(
+    @JwtAccessToken() token:string,
+    @PayloadJWT() payload:Payload
+  ){
+    return this.userService.logout(token,payload.exp * 1000);
+  }
 
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Create a user',
+    summary: 'Update a user',
   })
-  @ApiSuccessResponse(PrimitiveType.STRING,200,'User deleted successfully')
+  @ApiSuccessResponse(UserResponseDto,200,'User updated successfully')
   @ApiFailureResponse(400,'Invalid request')
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.userService.remove(+id);
+  @Patch('profile')
+  update(
+    @PayloadJWT() payload:Payload,
+    @Body() update: UpdateUserDto
+  ) {
+    return this.userService.update(payload.sub,update);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete a user',
+  })
+  @ApiSuccessResponse(PrimitiveType.BOOLEAN,200,'User deleted successfully')
+  @ApiFailureResponse(400,'Invalid request')
+  @Delete()
+  remove(
+    @PayloadJWT() payload:Payload
+  ) {
+    return this.userService.remove(payload.sub);
   }
 }

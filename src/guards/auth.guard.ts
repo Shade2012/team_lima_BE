@@ -1,14 +1,18 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { PUBLIC_KEY } from 'src/decorators/public.decorator';
 import { Role } from '@prisma/client';
 import { USER_ROLE_EXT_DECORATOR_KEY } from 'src/decorators/user_role_ext.decorator';
 import { Request } from 'express';
+import { AuthService } from 'src/features/account/auth/auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private jwtService: JwtService, private reflector:Reflector){}
+  constructor(
+    private authService: AuthService,
+    private reflector:Reflector
+  ){}
   async canActivate(
     context: ExecutionContext,
   ): Promise<boolean>{
@@ -29,8 +33,9 @@ export class AuthGuard implements CanActivate {
       let payloadVerify:any | undefined = undefined
 
       if(token){
-        payloadVerify = await this.jwtService.verifyAsync(token)
+        payloadVerify = await this.authService.verifyToken(token)
         request['user'] = payloadVerify;
+        request['token'] = token
       }
 
       if(isPublic){
