@@ -11,6 +11,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { BullModule } from '@nestjs/bullmq';
 import { HttpExceptionFilter } from './filter/http-exception.filter';
 import { env } from 'process';
+import { EventModule } from './features/event/event.module';
+import { TicketCategoryModule } from './features/ticket-category/ticket-category.module';
+import { SeatModule } from './features/seat/seat.module';
+import { GateModule } from './features/gate/gate.module';
 
 @Module({
   imports: [
@@ -27,7 +31,7 @@ import { env } from 'process';
         port: Number(process.env.REDIS_PORT),
       }
     }),
-    PrismaModule, ExampleSwaggerModule, UserModule
+    PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule
   ],
   controllers: [AppController],
   providers: [
