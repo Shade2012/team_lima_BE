@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { IsEmail, IsEnum, IsNotEmpty, IsString, IsStrongPassword } from 'class-validator';
-
+import { IsEmail, IsEnum, IsIn, IsNotEmpty, IsString, IsStrongPassword } from 'class-validator';
+const AllowedRoles = [Role.CUSTOMER,Role. ORGANIZER]
 export class CreateUserDto {
   @ApiProperty({
     description: 'Unique username for the user',
@@ -12,7 +12,7 @@ export class CreateUserDto {
   username!: string;
 
   @ApiProperty({
-    description: 'User email address',
+    description: 'Unique user email address',
     example: 'john@example.com',
   })
   @IsNotEmpty()
@@ -38,12 +38,12 @@ export class CreateUserDto {
 
   @ApiProperty({
     description: 'User role',
-    enum: Role,
+    enum: AllowedRoles,
     enumName: 'Role',
     example: Role.CUSTOMER,
   })
-  @IsEnum(Role, {
-    message: `Role must be one of: ${Object.values(Role).join(', ')}`,
+  @IsIn(AllowedRoles, {
+    message: `Role must be one of: ${Object.values(AllowedRoles).join(', ')}`,
   })
   role!: Role;
 }
