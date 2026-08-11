@@ -13,6 +13,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { BullModule } from '@nestjs/bullmq';
 import { HttpExceptionFilter } from './filter/http-exception.filter';
 import { env } from 'process';
+import { EventModule } from './features/event/event.module';
+import { TicketCategoryModule } from './features/ticket-category/ticket-category.module';
+import { SeatModule } from './features/seat/seat.module';
+import { GateModule } from './features/gate/gate.module';
 import { RedisIoModule } from './redis/redis.module';
 import { AuthModule } from './features/account/auth/auth.module';
 
@@ -43,7 +47,7 @@ import { AuthModule } from './features/account/auth/auth.module';
         port: Number(process.env.REDIS_PORT) || 6379,
       }
     }),
-    PrismaModule, ExampleSwaggerModule, AuthModule, UserModule
+    PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule
   ],
   controllers: [AppController],
   providers: [
