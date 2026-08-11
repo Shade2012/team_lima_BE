@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { IsEmail, IsEnum, IsIn, IsNotEmpty, IsString, IsStrongPassword } from 'class-validator';
-const AllowedRoles = [Role.CUSTOMER,Role. ORGANIZER]
+import { IsEmail, IsEnum, IsIn, IsNotEmpty, IsString, IsStrongPassword, ValidateIf } from 'class-validator';
+const AllowedRoles = [Role.CUSTOMER,Role. ORGANIZER, Role.GATE_OPERATOR]
 export class CreateUserDto {
   @ApiProperty({
     description: 'Unique username for the user',
@@ -46,5 +46,15 @@ export class CreateUserDto {
     message: `Role must be one of: ${Object.values(AllowedRoles).join(', ')}`,
   })
   role!: Role;
+
+@ApiProperty({
+    description: 'event id required only when role is GATE_OPERATOR',
+    example: '12121019-sadsadadawks',
+    required: false,
+  })
+  @ValidateIf((o: CreateUserDto) => o.role === Role.GATE_OPERATOR)
+  @IsNotEmpty({ message: 'eventId is required when role is GATE_OPERATOR' })
+  @IsString()
+  eventId?: string;
 }
 

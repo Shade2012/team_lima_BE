@@ -7,7 +7,6 @@ import { Prisma, Role, User } from '@prisma/client';
 import { LoginUserDto } from './dto/login-user-dto';
 import { Payload } from 'src/utils/payload';
 import { AuthService } from '../auth/auth.service';
-import { CreateGateOperatorDto } from './dto/create-gate-operator.dto';
 
 @Injectable()
 export class UserService {
@@ -15,16 +14,6 @@ export class UserService {
     private readonly authService: AuthService,
     private prisma: PrismaService,
   ) {}
-
-  async createGateOperator(dto: CreateGateOperatorDto): Promise<User>{
-    const user = new CreateUserDto()
-    user.role = Role.GATE_OPERATOR
-    user.email = dto.email
-    user.username = dto.username
-    user.password = dto.password
-    const result = this.create(user)
-    return result
-  }
 
   async create(dto: CreateUserDto): Promise<User> {
     const model = this.prisma.user;

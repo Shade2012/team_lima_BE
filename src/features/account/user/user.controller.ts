@@ -11,8 +11,6 @@ import { ApiSuccessResponse, PrimitiveType } from 'src/decorators/api-success-re
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
 import { Public } from 'src/decorators/public.decorator';
 import { JwtAccessToken } from 'src/decorators/jwt.-access-token.decorator';
-import { CreateGateOperatorDto } from './dto/create-gate-operator.dto';
-import { GateOperatorResponseDto } from './response/gate-operator.response.dto';
 
 @ApiTags('User')
 @Controller('users')
@@ -29,19 +27,6 @@ export class UserController {
   create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
-
-  @Public()
-  @Post('register/gate-operator')
-  @ApiOperation({
-    summary: 'Create a gate operator',
-    description:'Belum kelar',
-  })
-  @ApiSuccessResponse(GateOperatorResponseDto,201)
-  @ApiFailureResponse(400,'Invalid request')
-  createGateOperator(@Body() createGateOperatorDto: CreateGateOperatorDto) {
-    return this.userService.createGateOperator(createGateOperatorDto);
-  }
-
 
   @Public()
   @Post('login')
