@@ -7,15 +7,31 @@ import { Prisma, Role, User } from '@prisma/client';
 import { LoginUserDto } from './dto/login-user-dto';
 import { Payload } from 'src/utils/payload';
 import { AuthService } from '../auth/auth.service';
+import { CreateGateOperatorDto } from './dto/create-gate-operator.dto';
+import { EventService } from 'src/features/event/event.service';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly authService: AuthService,
     private prisma: PrismaService,
+    private readonly eventService: EventService
   ) {}
 
-  async create(dto: CreateUserDto) {
+  async createGateOperator(dto: CreateGateOperatorDto){
+    await this.eventService.findOne(dto.eventId)
+    return this.create(
+      {
+        email: dto.email,
+        username: dto.username,
+        password:dto.password,
+        role: Role.GATE_OPERATOR,
+      },
+      dto.eventId,
+    );
+  }
+
+  async create(dto: CreateUserDto, eventId?: string) {
     const model = this.prisma.user;
     const hash = await this.authService.hashPassword(dto.password)
     return model.create({
@@ -23,7 +39,14 @@ export class UserService {
         email:dto.email,
         username:dto.username,
         role:dto.role,
-        password:hash
+        password:hash,
+        ...(eventId && {
+          events:{
+            connect:{
+              id: eventId
+            }
+          },
+        }),
       },
       omit:{
         password:true

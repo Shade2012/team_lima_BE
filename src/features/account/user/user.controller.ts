@@ -1,21 +1,45 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseArrayPipe } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user-dto';
 import { PayloadJWT } from 'src/decorators/payload_jwt.decorator';
 import { Payload } from 'src/utils/payload';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserResponseDto } from './response/user.response';
 import { ApiSuccessResponse, PrimitiveType } from 'src/decorators/api-success-response.decorator';
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
 import { Public } from 'src/decorators/public.decorator';
 import { JwtAccessToken } from 'src/decorators/jwt.-access-token.decorator';
+import { UserRoleExt } from 'src/decorators/user_role_ext.decorator';
+import { Role } from '@prisma/client';
+import { CreateGateOperatorDto } from './dto/create-gate-operator.dto';
 
 @ApiTags('User')
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  @UserRoleExt(Role.ORGANIZER)
+  @Post('register/gate-operator')
+  @ApiOperation({
+    summary: 'Create a gate operator',
+  })
+  @ApiBody({
+    type:[CreateGateOperatorDto]
+  })
+  @ApiSuccessResponse(UserResponseDto,201)
+  @ApiFailureResponse(400,'Invalid request')
+  @ApiFailureResponse(403,'Forbidden Resources')
+  createGateOperator(
+    @Body(
+      new ParseArrayPipe({
+        items:CreateGateOperatorDto
+      })
+    ) createGateOperator: CreateGateOperatorDto[]) {
+    return this.userService.createGateOperator(createGateOperator[0]);
+  }
+
 
   @Public()
   @Post('register')
