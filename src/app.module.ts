@@ -19,6 +19,8 @@ import { SeatModule } from './features/seat/seat.module';
 import { GateModule } from './features/gate/gate.module';
 import { RedisIoModule } from './redis/redis.module';
 import { AuthModule } from './features/account/auth/auth.module';
+import { OrderModule } from './features/transaction/order/order.module';
+import { TicketModule } from './features/transaction/ticket/ticket.module';
 
 @Module({
   imports: [
@@ -47,7 +49,8 @@ import { AuthModule } from './features/account/auth/auth.module';
         port: Number(process.env.REDIS_PORT) || 6379,
       }
     }),
-    PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule
+    AuthModule,
+    PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule, OrderModule, TicketModule
   ],
   controllers: [AppController],
   providers: [

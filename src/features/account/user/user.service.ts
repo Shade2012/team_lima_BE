@@ -15,7 +15,7 @@ export class UserService {
     private prisma: PrismaService,
   ) {}
 
-  async create(dto: CreateUserDto): Promise<User> {
+  async create(dto: CreateUserDto) {
     const model = this.prisma.user;
     const hash = await this.authService.hashPassword(dto.password)
     return model.create({
@@ -24,6 +24,9 @@ export class UserService {
         username:dto.username,
         role:dto.role,
         password:hash
+      },
+      omit:{
+        password:true
       }
     });
   }

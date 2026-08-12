@@ -13,7 +13,6 @@ export class AuthService {
 
   constructor(
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-    private prisma: PrismaService,
     private jwtService: JwtService
   ) {}
 

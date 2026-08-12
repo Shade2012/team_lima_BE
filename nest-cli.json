@@ -3,6 +3,9 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
+    "assets": [
+      {"include": "redis/lua/**/*.lua", "outDir": "dist/lua"}
+    ],
     "deleteOutDir": true
   }
 }

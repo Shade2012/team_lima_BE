@@ -39,6 +39,16 @@ export class TicketCategoryService {
     });
   }
 
+  async findByIds(ids: string[]): Promise<TicketCategory[]> {
+    return this.prisma.ticketCategory.findMany({
+      where:{
+        id:{
+          in:ids
+        }
+      }
+    })
+  }
+
   async findOne(id: string): Promise<TicketCategory> {
     const category = await this.prisma.ticketCategory.findUnique({
       where: { id },
