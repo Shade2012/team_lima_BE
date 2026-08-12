@@ -47,7 +47,7 @@ import { AuthModule } from './features/account/auth/auth.module';
         port: Number(process.env.REDIS_PORT) || 6379,
       }
     }),
-    PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule
+    PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule, AuthModule
   ],
   controllers: [AppController],
   providers: [
