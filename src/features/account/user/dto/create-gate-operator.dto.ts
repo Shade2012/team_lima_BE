@@ -16,4 +16,14 @@ export class CreateGateOperatorDto extends OmitType(CreateUserDto,['role']){
     message: 'eventId must be a valid UUID v7',
   })
   eventId!: string;
+
+  @ApiProperty({
+    description: 'Unique gate id to bind to this operator',
+    example: '12121019-sadsadadawks',
+  })
+  @IsNotEmpty({ message: 'gateId is required' })
+  @IsUUID('7', {
+    message: 'gateId must be a valid UUID v7',
+  })
+  gateId!: string;
 }

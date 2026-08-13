@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -20,6 +20,15 @@ export class UserService {
 
   async createGateOperator(dto: CreateGateOperatorDto){
     await this.eventService.findOne(dto.eventId)
+
+    const gate = await this.prisma.gate.findUnique({ where: { id: dto.gateId } });
+    if (!gate) {
+      throw new NotFoundException(`Gate with ID ${dto.gateId} not found`);
+    }
+    if (gate.eventId !== dto.eventId) {
+      throw new BadRequestException('Gate does not belong to the specified Event');
+    }
+
     return this.create(
       {
         email: dto.email,
@@ -28,10 +37,11 @@ export class UserService {
         role: Role.GATE_OPERATOR,
       },
       dto.eventId,
+      dto.gateId
     );
   }
 
-  async create(dto: CreateUserDto, eventId?: string) {
+  async create(dto: CreateUserDto, eventId?: string, gateId?: string) {
     const model = this.prisma.user;
     const hash = await this.authService.hashPassword(dto.password)
     return model.create({
@@ -47,6 +57,9 @@ export class UserService {
             }
           },
         }),
+        ...(gateId && {
+          gate: { connect: { id: gateId } }
+        })
       },
       omit:{
         password:true
