@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { CreateTicketCategoryDto } from './dto/create-ticket-category.dto';
 import { UpdateTicketCategoryDto } from './dto/update-ticket-category.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { EventService } from 'src/features/event/event.service';
+import { EventService } from 'src/features/event_management/event/event.service';
 import { Payload } from 'src/utils/payload';
 import { TicketCategory, TicketStatus } from '@prisma/client';
 import { TicketCategoryWithCount } from './constant/ticket-category-with-count-type';

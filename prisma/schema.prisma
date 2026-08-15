@@ -13,6 +13,7 @@ model User {
   username       String          @unique
   password       String
   role           Role
+  gateId         String?         @map("gate_id") @db.Uuid
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
@@ -20,6 +21,7 @@ model User {
   orders         Order[]         @relation(name: "OrderToUser")
   ticketLogs     TicketLog[]     @relation(name: "TicketLogToUser")
   admissionScans AdmissionScan[] @relation(name: "AdmissionScanToUser")
+  gate           Gate?           @relation(name: "GateToUser", fields: [gateId], references: [id])
 
   @@map("users")
 }
@@ -198,6 +200,7 @@ model Gate {
 
   event     Event           @relation(name: "EventToGate", fields: [eventId], references: [id])
   scans     AdmissionScan[] @relation(name: "AdmissionScanToGate")
+  operators User[]          @relation(name: "GateToUser")
 
   @@index([eventId])
   @@map("gates")

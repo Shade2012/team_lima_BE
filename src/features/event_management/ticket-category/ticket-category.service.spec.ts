@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TicketCategoryService } from './ticket-category.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { EventService } from 'src/features/event/event.service';
+import { EventService } from 'src/features/event_management/event/event.service';
 import { Payload } from 'src/utils/payload';
 import { Role } from '@prisma/client';
 import { ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';

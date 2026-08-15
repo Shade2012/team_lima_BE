@@ -14,14 +14,17 @@ import { BullModule } from '@nestjs/bullmq';
 import { HttpExceptionFilter } from './filter/http-exception.filter';
 import { ScheduleModule } from '@nestjs/schedule'
 import { env } from 'process';
-import { EventModule } from './features/event/event.module';
-import { TicketCategoryModule } from './features/ticket-category/ticket-category.module';
-import { SeatModule } from './features/seat/seat.module';
-import { GateModule } from './features/gate/gate.module';
+import { EventModule } from './features/event_management/event/event.module';
+import { TicketCategoryModule } from './features/event_management/ticket-category/ticket-category.module';
+import { SeatModule } from './features/event_management/seat/seat.module';
+import { GateModule } from './features/event_management/gate/gate.module';
 import { RedisIoModule } from './redis/redis.module';
 import { AuthModule } from './features/account/auth/auth.module';
 import { OrderModule } from './features/transaction/order/order.module';
 import { TicketModule } from './features/transaction/ticket/ticket.module';
+import { PaymentModule } from './features/transaction/payment/payment.module';
+import { OrdersModule } from './features/transaction/orders/orders.module';
+import { MockPgModule } from './features/transaction/mock-pg/mock-pg.module';
 
 @Module({
   imports: [
@@ -52,7 +55,8 @@ import { TicketModule } from './features/transaction/ticket/ticket.module';
       }
     }),
     AuthModule,
-    PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule, OrderModule, TicketModule
+    PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule, OrderModule, TicketModule,
+    PaymentModule, OrdersModule, MockPgModule
   ],
   controllers: [AppController],
   providers: [
