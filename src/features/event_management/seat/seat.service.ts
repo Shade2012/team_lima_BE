@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { BulkCreateSeatDto } from './dto/create-seat.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { EventService } from 'src/features/event/event.service';
-import { TicketCategoryService } from 'src/features/ticket-category/ticket-category.service';
+import { EventService } from 'src/features/event_management/event/event.service';
+import { TicketCategoryService } from 'src/features/event_management/ticket-category/ticket-category.service';
 import { Payload } from 'src/utils/payload';
 import { Seat } from '@prisma/client';
 
