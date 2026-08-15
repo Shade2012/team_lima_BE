@@ -31,14 +31,6 @@ const mockEventStats = {
   categories: [],
 };
 
-const mockOrganizerSummary = {
-  totalEvents: 1,
-  totalTicketsSold: 50,
-  totalGrossRevenue: 5000000,
-  totalNetRevenue: 5000000,
-  events: [mockEventStats],
-};
-
 const mockEventService = {
   create: jest.fn().mockResolvedValue(mockEvent),
   findAll: jest.fn().mockResolvedValue([mockEvent]),
@@ -47,7 +39,6 @@ const mockEventService = {
   update: jest.fn().mockResolvedValue({ ...mockEvent, name: 'Updated Concert' }),
   remove: jest.fn().mockResolvedValue(mockEvent),
   getEventStatistics: jest.fn().mockResolvedValue(mockEventStats),
-  getOrganizerSummary: jest.fn().mockResolvedValue(mockOrganizerSummary),
 };
 
 describe('EventController', () => {
@@ -118,15 +109,6 @@ describe('EventController', () => {
 
       expect(result).toEqual([mockEvent]);
       expect(service.findByOrganizer).toHaveBeenCalledWith(payload.sub);
-    });
-  });
-
-  describe('getOrganizerSummary', () => {
-    it('should call service.getOrganizerSummary with payload', async () => {
-      const result = await controller.getOrganizerSummary(payload);
-
-      expect(result).toEqual(mockOrganizerSummary);
-      expect(service.getOrganizerSummary).toHaveBeenCalledWith(payload);
     });
   });
 

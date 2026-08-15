@@ -48,20 +48,3 @@ export class EventStatisticsResponseDto {
   @ApiProperty({ type: [CategoryStatisticsResponseDto] })
   categories!: CategoryStatisticsResponseDto[];
 }
-
-export class OrganizerSummaryResponseDto {
-  @ApiProperty({ example: 3 })
-  totalEvents!: number;
-
-  @ApiProperty({ example: 1200 })
-  totalTicketsSold!: number;
-
-  @ApiProperty({ example: 600000000 })
-  totalGrossRevenue!: number;
-
-  @ApiProperty({ example: 580000000 })
-  totalNetRevenue!: number;
-
-  @ApiProperty({ type: [EventStatisticsResponseDto] })
-  events!: EventStatisticsResponseDto[];
-}

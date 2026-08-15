@@ -6,10 +6,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiSuccessResponse } from 'src/decorators/api-success-response.decorator';
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
 import { EventResponseDto } from './response/event.response';
-import {
-  EventStatisticsResponseDto,
-  OrganizerSummaryResponseDto,
-} from './response/event-statistics.response';
+import { EventStatisticsResponseDto } from './response/event-statistics.response';
 import { PayloadJWT } from 'src/decorators/payload_jwt.decorator';
 import { Payload } from 'src/utils/payload';
 import { UserRoleExt } from 'src/decorators/user_role_ext.decorator';
@@ -38,7 +35,7 @@ export class EventController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'Get all events' })
-  @ApiSuccessResponse(EventResponseDto)
+  @ApiSuccessResponse(EventResponseDto, 200, 'Request successful', true)
   findAll() {
     return this.eventService.findAll();
   }
@@ -47,20 +44,9 @@ export class EventController {
   @ApiBearerAuth()
   @UserRoleExt(Role.ORGANIZER)
   @ApiOperation({ summary: 'Get events owned by the logged-in organizer' })
-  @ApiSuccessResponse(EventResponseDto)
+  @ApiSuccessResponse(EventResponseDto, 200, 'Request successful', true)
   findMyEvents(@PayloadJWT() payload: Payload) {
     return this.eventService.findByOrganizer(payload.sub);
-  }
-
-  @Get('organizer/summary')
-  @ApiBearerAuth()
-  @UserRoleExt(Role.ORGANIZER)
-  @ApiOperation({ summary: 'Get aggregated summary and revenue across all organizer events (Organizer only)' })
-  @ApiSuccessResponse(OrganizerSummaryResponseDto)
-  @ApiFailureResponse(401, 'Unauthorized')
-  @ApiFailureResponse(403, 'Forbidden')
-  getOrganizerSummary(@PayloadJWT() payload: Payload) {
-    return this.eventService.getOrganizerSummary(payload);
   }
 
   @Get(':id/statistics')

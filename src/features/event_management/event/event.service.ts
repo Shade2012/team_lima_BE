@@ -7,7 +7,6 @@ import { Event, OrderStatus, TicketStatus } from '@prisma/client';
 import {
   CategoryStatisticsResponseDto,
   EventStatisticsResponseDto,
-  OrganizerSummaryResponseDto,
 } from './response/event-statistics.response';
 
 @Injectable()
@@ -98,9 +97,9 @@ export class EventService {
     });
   }
 
-  async getEventStatistics(eventId: string, payload: Payload): Promise<EventStatisticsResponseDto> {
+  async getEventStatistics(id: string, payload: Payload): Promise<EventStatisticsResponseDto> {
     const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
+      where: { id },
       include: {
         categories: {
           include: {
@@ -116,7 +115,7 @@ export class EventService {
     });
 
     if (!event) {
-      throw new NotFoundException(`Event with id ${eventId} not found`);
+      throw new NotFoundException(`Event with id ${id} not found`);
     }
 
     if (event.organizerId !== payload.sub) {
@@ -124,39 +123,6 @@ export class EventService {
     }
 
     return this.calculateEventStatistics(event);
-  }
-
-  async getOrganizerSummary(payload: Payload): Promise<OrganizerSummaryResponseDto> {
-    const events = await this.prisma.event.findMany({
-      where: { organizerId: payload.sub },
-      include: {
-        categories: {
-          include: {
-            tickets: {
-              include: {
-                order: true,
-                refund: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { eventDate: 'asc' },
-    });
-
-    const eventStatsList = events.map((event) => this.calculateEventStatistics(event));
-
-    const totalTicketsSold = eventStatsList.reduce((sum, e) => sum + e.totalTicketsSold, 0);
-    const totalGrossRevenue = eventStatsList.reduce((sum, e) => sum + e.grossRevenue, 0);
-    const totalNetRevenue = eventStatsList.reduce((sum, e) => sum + e.netRevenue, 0);
-
-    return {
-      totalEvents: eventStatsList.length,
-      totalTicketsSold,
-      totalGrossRevenue,
-      totalNetRevenue,
-      events: eventStatsList,
-    };
   }
 
   private calculateEventStatistics(event: any): EventStatisticsResponseDto {
