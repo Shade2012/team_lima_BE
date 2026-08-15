@@ -10,8 +10,17 @@ export function IsAfter(property: string, validationOptions?: ValidationOptions)
       options: validationOptions,
       validator: {
         validate(value: any, args: ValidationArguments) {
+          if (value === undefined || value === null) {
+            return true;
+          }
+
           const [relatedPropertyName] = args.constraints;
           const relatedValue = (args.object as any)[relatedPropertyName];
+
+          if (relatedValue === undefined || relatedValue === null) {
+            return true;
+          }
+
           if (value instanceof Date && relatedValue instanceof Date) {
             return value.getTime() > relatedValue.getTime();
           }
@@ -25,3 +34,4 @@ export function IsAfter(property: string, validationOptions?: ValidationOptions)
     });
   };
 }
+
