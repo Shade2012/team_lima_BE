@@ -22,6 +22,10 @@ export const RedisProvider: Provider = {
     const luaPathRemove = path.join(process.cwd(), 'src', 'redis', 'lua', 'remove_seat.lua');
     const luaScriptRemove = await fs.readFile(luaPathRemove, 'utf-8');
 
+    // Load extend_payment_pending.lua
+    const luaPathPending = path.join(process.cwd(), 'src', 'redis', 'lua', 'extend_payment_pending.lua');
+    const luaScriptPending = await fs.readFile(luaPathPending, 'utf-8');
+
     // Register custom command
     client.defineCommand(
       'reserveSeats', {
@@ -35,6 +39,11 @@ export const RedisProvider: Provider = {
       },
     );
 
+    client.defineCommand(
+      'extendsPaymentPending', {
+        lua: luaScriptPending,
+      },
+    );
     // You can define more Lua scripts here in the future
     // client.defineCommand('releaseSeats', { lua: releaseScript });
 

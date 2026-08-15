@@ -5,7 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { EventService } from 'src/features/event_management/event/event.service';
 import { Payload } from 'src/utils/payload';
 import { TicketCategory, TicketStatus } from '@prisma/client';
-import { TicketCategoryWithCount } from './constant/ticket-category-with-count-type';
+import { TicketCategoryWithCount } from 'src/features/event_management/ticket-category/constant/ticket-category-with-count-type';
 
 @Injectable()
 export class TicketCategoryService {

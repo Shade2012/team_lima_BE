@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { OrderController } from './order.controller';
 import { EventModule } from 'src/features/event_management/event/event.module';
@@ -8,6 +8,9 @@ import { RedisIoModule } from 'src/redis/redis.module';
 import { OrdersCleanupCron } from './jobs/order-cleanup-cron';
 import { OrderExpiryProcessor } from './processor/order-expired.processor';
 import { BullModule } from '@nestjs/bullmq';
+import { MockPgModule } from '../mock-pg/mock-pg.module';
+import { PaymentModule } from '../payment/payment.module';
+import { PaymentService } from '../payment/payment.service';
 
 @Module({
   controllers: [OrderController],
@@ -16,10 +19,18 @@ import { BullModule } from '@nestjs/bullmq';
     OrdersCleanupCron,
     OrderExpiryProcessor
   ],
-  imports:[EventModule, TicketCategoryModule, SeatModule, RedisIoModule,
+  imports:[
+    EventModule, 
+    TicketCategoryModule, 
+    SeatModule,
+    RedisIoModule,
     BullModule.registerQueue({
       name:'order-expired'
-    })
+    }),
+    forwardRef(() => PaymentModule)
+  ],
+  exports:[
+    OrderService
   ]
 })
 export class OrderModule {}

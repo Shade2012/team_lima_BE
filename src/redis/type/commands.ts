@@ -8,6 +8,10 @@ export interface CustomRedisCommands {
   removeSeats(
     ...args: (string | number)[]
   ): Promise<[status: number, messageOrTtl: string, extraInfo?: string]>;
+
+  extendsPaymentPending(
+    ...args: (string | number)[]
+  ): Promise<[status: number, messageOrTtl: string, extraInfo?: string]>;
   
   // You can add your future Lua script here later:
   // releaseSeats(...args: (string | number)[]): Promise<any>;

@@ -1,23 +1,27 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, forwardRef, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
 import { Payload } from 'src/utils/payload';
 import { v7 as uuidv7 } from 'uuid';
-import { EventService } from 'src/features/event/event.service';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/type/commands';
-import { Prisma } from '@prisma/client';
+import { OrderStatus, Prisma } from '@prisma/client';
+import { EventService } from 'src/features/event_management/event/event.service';
+import { MockPgService } from '../mock-pg/mock-pg.service';
+import { PaymentService } from '../payment/payment.service';
 
 @Injectable()
 export class OrderService {
+  private readonly logger = new Logger(OrderService.name);
 
   constructor(
     @InjectQueue('order-expired') private readonly expiryQueue: Queue,
     private readonly redis:RedisService,
     private readonly prisma: PrismaService,
     private readonly eventService: EventService,
+    @Inject(forwardRef(() => PaymentService))
+    private readonly paymentService: PaymentService,
   ) {}
 
   async create(eventId: string, dto: CreateOrderDto, payload: Payload, idempotencyKey?: string) {
@@ -89,11 +93,8 @@ export class OrderService {
         { delay: ttlSeconds * 1000, jobId: `expire-${order.id}` },
       );
 
-      return {
-        orderId: order.id,
-        status: order.status,
-        expiresAt,
-      };
+
+      return await this.paymentService.createCheckoutSession(order.id, payload.sub)
     } catch (exception) {
       if (isReservedInRedis) {
         await this.rollbackReservation(allKeys,  luaPayload);
@@ -103,25 +104,108 @@ export class OrderService {
   }
 
   async findAll(payload:Payload) {
-    await this.redis.flushall();
-    const customerId = payload.sub;
-    return this.prisma.order.findMany({
+    const orders = this.prisma.order.findMany({
       where:{
         customerId:payload.sub
+      },
+      include:{
+        tickets:{
+          include:{
+            category:true
+          }
+        }
       }
     });
+
+    if(!orders){
+      throw new NotFoundException("Orders not found")
+    }
+    return orders
   }
 
-  async findOne(id: number) {
-    return `This action returns a #${id} order`;
+  async markAsPaymentPending(orderId: string, customerId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId, customerId },
+      include: { event: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (order.status !== 'HELD') {
+      throw new BadRequestException(`Order cannot move to payment from ${order.status} state`);
+    }
+    
+    const orderKey = `order:customer:${customerId}:event:${order.eventId}`;
+    const endSalesTimestamp = Math.floor(new Date(order.event.salesEndTime).getTime() / 1000);
+    const extensionSeconds = 900; 
+
+    const [status, resultVal] = await this.redis.extendsPaymentPending(
+      1,
+      orderKey,
+      String(endSalesTimestamp),
+      String(extensionSeconds),
+    );
+
+    if (status === 0) {
+      throw new BadRequestException(`Failed to extend hold: ${resultVal}`);
+    }
+
+    const newTtlSeconds = Number(resultVal);
+    const newExpiresAt = new Date(Date.now() + newTtlSeconds * 1000);
+
+    const updatedOrder = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: 'PAYMENT_PENDING',
+        expiresAt: newExpiresAt,
+      },
+    });
+
+    await this.expiryQueue.remove(`expire-${orderId}`);
+    await this.expiryQueue.add(
+      'order-expired',
+      { orderId, eventId: order.eventId },
+      {
+        delay: newTtlSeconds * 1000,
+        jobId: `expire-${orderId}`,
+      },
+    );
+
+    return updatedOrder;
   }
 
-  update(id: number, updateOrderDto: UpdateOrderDto) {
-    return `This action updates a #${id} order`;
+  async clear() {
+    await this.redis.flushall('ASYNC');
   }
 
-  async remove(id: number) {
-    return `This action removes a #${id} order`;
+  async findOne(id: string, customerId: string) {
+    const order = await this.prisma.order.findUnique({
+      where:{
+        id
+      },
+      include:{
+        customer:true
+      }
+    })
+    if(!order || order.customer?.id !== customerId){
+      throw new NotFoundException('Order not found')
+    }
+    return order
+  }
+
+  async updateOrderStatus(orderId:string, status: OrderStatus){
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: status,
+      },
+    });
   }
 
   async rollbackReservation(keys: string[], categoriesJson: string) {
@@ -132,54 +216,69 @@ export class OrderService {
     }
   }
 
-  async cancelExpiredOrder(orderId: string, categoryCounts?: Record<string, number>): Promise<boolean> {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      include: { 
-        event: { select: { id:true, salesEndTime: true } },
-        tickets: true,
+async cancelExpiredOrder(orderId: string, categoryCounts?: Record<string, number>): Promise<boolean> {
+  const order = await this.prisma.order.findUnique({
+    where: { id: orderId },
+    include: { 
+      event: { select: { id: true, salesEndTime: true } },
+      tickets: true,
+    },
+  });
+
+  if (!order || !['HELD', 'PAYMENT_PENDING'].includes(order.status)) {
+    return false; 
+  }
+
+  const isSalesEnded = new Date() >= order.event.salesEndTime;
+  const orderStatus = 'CANCELLED';
+  const ticketStatus = isSalesEnded ? 'EXPIRED' : 'CANCELLED';
+
+  const [updatedOrder] = await this.prisma.$transaction([
+    this.prisma.order.updateMany({
+      where: {
+        id: order.id,
+        status: { in: ['HELD', 'PAYMENT_PENDING'] },
       },
-    });
+      data: { status: orderStatus },
+    }),
 
-    if (!order || !['HELD', 'PAYMENT_PENDING'].includes(order.status)) {
-      return false; 
-    }
-
-    const isSalesEnded = new Date() >= order.event.salesEndTime;
-    const orderStatus = 'CANCELLED';
-    const ticketStatus = isSalesEnded ? 'EXPIRED' : 'CANCELLED';
-
-    const [updatedOrder] = await this.prisma.$transaction([
-      this.prisma.order.updateMany({
-        where: {
-          id: order.id,
-          status: { in: ['HELD', 'PAYMENT_PENDING'] },
-        },
-        data: { status: orderStatus },
-      }),
-      this.prisma.ticket.updateMany({
-        where: { orderId: order.id },
+    this.prisma.ticket.updateMany({
+      where: { orderId: order.id },
         data: { status: ticketStatus },
       }),
     ]);
 
     if (updatedOrder.count > 0) {
-      const pipeline = this.redis.pipeline();
+      const orderKey = `order:customer:${order.customerId}:event:${order.eventId}`;
 
       if (!isSalesEnded) {
-        const counts = categoryCounts || this.buildCategoryCountsFromTickets(order.tickets);
-        for (const [catId, qty] of Object.entries(counts)) {
-          pipeline.decrby(`category:${catId}:held`, qty);
-        }
-      }
+        const hasCounts = categoryCounts && Object.keys(categoryCounts).length > 0;
+        const counts = hasCounts 
+          ? categoryCounts 
+          : this.buildCategoryCountsFromTickets(order.tickets);
 
-      const orderKey = `order:customer:${order.customerId}:event:${order.eventId}`;
-      pipeline.del(orderKey);
-      
-      await pipeline.exec();
+        const uniqueCatIds = Object.keys(counts);
+        const categoryKeys = uniqueCatIds.map((catId) => `category:${catId}:held`);
+        const allKeys = [orderKey, ...categoryKeys];
+
+        const luaPayload = JSON.stringify(
+          uniqueCatIds.map((id) => ({ id, qty: counts[id] }))
+        );
+        try {
+          await this.redis.removeSeats(allKeys.length, ...allKeys, luaPayload);
+        } catch (redisErr) {
+          const pipeline = this.redis.pipeline();
+          for (const [catId, qty] of Object.entries(counts)) {
+            pipeline.decrby(`category:${catId}:held`, qty);
+          }
+          pipeline.del(orderKey);
+          await pipeline.exec();
+        }
+      } else {
+        await this.redis.del(orderKey);
+      }
       return true;
     }
-
     return false;
   }
 
@@ -188,11 +287,8 @@ export class OrderService {
     if (!event) {
       throw new NotFoundException(`Event ${eventId} not found`);
     }
-
-    // Calculate Unix timestamp in seconds
     const salesEndTimeSec = Math.floor(new Date(event.salesEndTime).getTime() / 1000);
 
-    // Count seats per category
     const categoryCounts = new Map<string, number>();
     for (const seat of seats) {
       categoryCounts.set(
@@ -204,7 +300,6 @@ export class OrderService {
     const uniqueCategoryIds = Array.from(categoryCounts.keys());
     let totalAmount = 0;
 
-    // Build category payload matching Lua array ordering
     const luaPayloadArray = uniqueCategoryIds.map((catId) => {
     const category = event.categories.find((cat) => cat.id === catId);
       
@@ -225,7 +320,7 @@ export class OrderService {
   return {
     categoryCounts,
     totalAmount,
-    luaPayload: JSON.stringify(luaPayloadArray), // Stringified once here
+    luaPayload: JSON.stringify(luaPayloadArray),
     salesEndTimeSec,
       uniqueCategoryIds,
     };
@@ -235,11 +330,11 @@ export class OrderService {
     orderKey: string,
     orderId: string,
     customerId: string,
-    luaPayloadJson: string, // Already stringified JSON string
-    uniqueCategoryIds: string[], // Pass unique category IDs directly
+    luaPayloadJson: string,
+    uniqueCategoryIds: string[],
     salesEndTimeSec: number, // Unix timestamp in seconds
   ) {
-    const holdTimeInSeconds = 900; // 15 minutes hold
+    const holdTimeInSeconds = 900; 
 
     // 1. Construct KEYS: [orderKey, category:cat1:held, category:cat2:held...]
     const keys = [
@@ -272,10 +367,11 @@ export class OrderService {
     });
 
     if (existingOrder && ['HELD', 'PAYMENT_PENDING'].includes(existingOrder.status)) {
+      const { orderId, checkoutUrl } = await this.paymentService.existingCheckoutSession(existingOrder.id, existingOrder.customerId)
       return {
         orderId: existingOrder.id,
         status: existingOrder.status,
-        // checkoutUrl: paymentSession.checkoutUrl,
+        checkoutUrl: checkoutUrl,
         expiresAt: existingOrder.expiresAt,
         isReusedSession: true,
       };

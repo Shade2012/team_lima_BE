@@ -35,7 +35,8 @@ export class OrderController {
   @ApiBearerAuth()
   @UserRoleExt(Role.CUSTOMER)
   @ApiOperation({summary: 'See all order' })
-  @ApiSuccessResponse(PrimitiveType.STRING, 200,'Get All Order')
+  @ApiSuccessResponse([OrderResponseDto], 200,'Get All Order')
+  @ApiFailureResponse(404,'Order not found')
   @Get('customer')
   findAll(
     @PayloadJWT() payload:Payload
@@ -43,18 +44,22 @@ export class OrderController {
     return this.orderService.findAll(payload);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.orderService.findOne(+id);
+  @ApiBearerAuth()
+  @UserRoleExt(Role.CUSTOMER)
+  @ApiOperation({summary: 'See order by id' })
+  @ApiSuccessResponse(OrderResponseDto, 200,'Get Order By Id')
+  @Get('customer/:id')
+  findOne(
+    @Param('id') id: string,
+    @PayloadJWT() payload:Payload
+  ) {
+    return this.orderService.findOne(id, payload.sub);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
-    return this.orderService.update(+id, updateOrderDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.orderService.remove(+id);
-  }
+  // @UserRoleExt(Role.CUSTOMER)
+  // @Get('clear')
+  // clear(
+  // ) {
+  //   return this.orderService.clear();
+  // }
 }

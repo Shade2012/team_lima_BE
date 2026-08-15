@@ -6,19 +6,15 @@ export class CreateTransactionDto {
   @ApiProperty({ description: 'The unique Payment ID from the database' })
   @IsUUID()
   @IsNotEmpty()
-  paymentId: string;
+  paymentId!: string;
 
   @ApiProperty({ description: 'The unique Order ID from the database' })
   @IsUUID()
   @IsNotEmpty()
-  orderId: string;
+  orderId!: string;
 
   @ApiProperty({ description: 'Total amount to pay' })
   @IsNumber()
   @IsNotEmpty()
-  amount: number;
-
-  @ApiProperty({ enum: PaymentMethod, description: 'Selected payment method' })
-  @IsEnum(PaymentMethod)
-  paymentMethod: PaymentMethod;
+  amount!: number;
 }

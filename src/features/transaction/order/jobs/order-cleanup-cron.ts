@@ -30,7 +30,7 @@ export class OrdersCleanupCron {
     const jobs = staleOrders.map((order) => ({
       name: 'order-expired',
       data: { orderId: order.id }, 
-      opts: { jobId: `cron-cleanup:${order.id}` }, 
+      opts: { jobId: `cron-cleanup-${order.id}` }, 
     }));
 
     await this.expiryQueue.addBulk(jobs);

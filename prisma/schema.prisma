@@ -133,9 +133,9 @@ model Ticket {
 model Payment {
   id            String        @id @default(uuid(7)) @db.Uuid
   orderId       String        @map("order_id") @db.Uuid
-  providerTrxId String        @unique @map("provider_trx_id")
+  providerTrxId String?        @unique @map("provider_trx_id")
   amount        Int
-  method        PaymentMethod @map("payment_method")
+  method        PaymentMethod? @map("payment_method")
   status        PaymentStatus @default(PENDING)
   paidAt        DateTime?     @map("paid_at")
   createdAt     DateTime      @default(now()) @map("created_at")

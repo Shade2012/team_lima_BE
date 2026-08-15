@@ -23,7 +23,6 @@ import { AuthModule } from './features/account/auth/auth.module';
 import { OrderModule } from './features/transaction/order/order.module';
 import { TicketModule } from './features/transaction/ticket/ticket.module';
 import { PaymentModule } from './features/transaction/payment/payment.module';
-import { OrdersModule } from './features/transaction/orders/orders.module';
 import { MockPgModule } from './features/transaction/mock-pg/mock-pg.module';
 
 @Module({
@@ -56,7 +55,7 @@ import { MockPgModule } from './features/transaction/mock-pg/mock-pg.module';
     }),
     AuthModule,
     PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule, OrderModule, TicketModule,
-    PaymentModule, OrdersModule, MockPgModule
+    PaymentModule, MockPgModule
   ],
   controllers: [AppController],
   providers: [

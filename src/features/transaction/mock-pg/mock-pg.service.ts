@@ -1,23 +1,25 @@
-import { Injectable, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, BadRequestException, forwardRef, Inject } from '@nestjs/common';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { SimulatePaymentDto } from './dto/simulate-payment.dto';
 import { MockTransactionResponseDto } from './response/mock-transaction.response';
 
 import { PaymentService } from '../payment/payment.service'; 
-import { OrdersService } from '../orders/orders.service'; 
+import { OrderService } from '../order/order.service';
+import { OrderStatus } from '@prisma/client';
 
 @Injectable()
 export class MockPgService {
   constructor(
+    @Inject(forwardRef(() => PaymentService))
     private readonly paymentService: PaymentService,
-    private readonly ordersService: OrdersService 
+    @Inject(forwardRef(() => OrderService))
+    private readonly orderService: OrderService 
   ) {}
 
   async createTransaction(dto: CreateTransactionDto): Promise<MockTransactionResponseDto> {
     const tokenPayload = { paymentId: dto.paymentId, orderId: dto.orderId };
     const snapToken = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
     const checkoutUrl = `https://mock-pg.team-lima.com/checkout/${snapToken}`;
-
     return {
       providerTrxId: snapToken,
       checkoutUrl: checkoutUrl,
@@ -45,7 +47,7 @@ export class MockPgService {
     try {
       await this.paymentService.processPaymentSuccess(paymentId, dto.providerTrxId);
 
-      await this.ordersService.handlePaymentSuccess(orderId);
+      await this.orderService.updateOrderStatus(orderId, OrderStatus.PAID);
 
       return true;
     } catch (error) {

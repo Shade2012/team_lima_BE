@@ -1,11 +1,14 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MockPgController } from './mock-pg.controller';
 import { MockPgService } from './mock-pg.service';
 import { PaymentModule } from '../payment/payment.module';
-import { OrdersModule } from '../orders/orders.module';
+import { OrderModule } from '../order/order.module';
 
 @Module({
-  imports: [PaymentModule, OrdersModule],
+  imports: [
+    forwardRef(() => OrderModule),
+    forwardRef(() => PaymentModule)
+  ],
   controllers: [MockPgController],
   providers: [MockPgService],
   exports: [MockPgService],
