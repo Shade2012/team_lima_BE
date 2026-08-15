@@ -4,7 +4,8 @@ import { UpdateTicketCategoryDto } from './dto/update-ticket-category.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EventService } from 'src/features/event/event.service';
 import { Payload } from 'src/utils/payload';
-import { TicketCategory } from '@prisma/client';
+import { TicketCategory, TicketStatus } from '@prisma/client';
+import { TicketCategoryWithCount } from './constant/ticket-category-with-count-type';
 
 @Injectable()
 export class TicketCategoryService {
@@ -39,12 +40,27 @@ export class TicketCategoryService {
     });
   }
 
-  async findByIds(ids: string[]): Promise<TicketCategory[]> {
+  async findByIds(ids: string[], eventId:string, statuses?: TicketStatus[]): Promise<TicketCategoryWithCount[]> {
     return this.prisma.ticketCategory.findMany({
       where:{
         id:{
           in:ids
-        }
+        },
+        eventId:eventId
+      },
+      include:{
+        _count:{
+          select:{
+            tickets:{
+              where:{
+                ...(statuses && statuses.length > 0 && {
+                  status:{
+                    in:statuses
+                }})
+              }
+            }
+          }
+        },
       }
     })
   }

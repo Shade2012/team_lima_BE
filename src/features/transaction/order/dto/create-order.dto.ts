@@ -1,14 +1,19 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsArray, IsNotEmpty, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsNotEmpty, ValidateNested } from "class-validator";
 import { CreateTicketDto } from "../../ticket/dto/create-ticket.dto";
+import { Type } from "class-transformer";
+import { IsUniqueSeats } from "src/validators/is-unique-seat-validator";
 
 export class CreateOrderDto {
     @ApiProperty({
         description: 'List of tickets to create',
         type: [CreateTicketDto]
     })
-    @IsArray()
     @IsNotEmpty()
+    @IsArray()
+    @ArrayMinSize(1)
+    @IsUniqueSeats({ message: 'Duplicate seats cannot be selected in the same order' })
     @ValidateNested({each:true})
+    @Type(() => CreateTicketDto)
     seats!: CreateTicketDto[];
 }

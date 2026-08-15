@@ -12,6 +12,7 @@ import { UserModule } from './features/account/user/user.module';
 import { JwtModule } from '@nestjs/jwt';
 import { BullModule } from '@nestjs/bullmq';
 import { HttpExceptionFilter } from './filter/http-exception.filter';
+import { ScheduleModule } from '@nestjs/schedule'
 import { env } from 'process';
 import { EventModule } from './features/event/event.module';
 import { TicketCategoryModule } from './features/ticket-category/ticket-category.module';
@@ -28,6 +29,7 @@ import { TicketModule } from './features/transaction/ticket/ticket.module';
       secret: process.env.JWT_CONSTANT,
       global: true,
     }),
+    ScheduleModule.forRoot(),
 
     RedisIoModule,
 

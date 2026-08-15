@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { BadRequestException, ClassSerializerInterceptor, ValidationError, ValidationPipe } from '@nestjs/common';
+import { formatValidationErrors } from './utils/format_validation_error';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,16 +15,12 @@ async function bootstrap() {
   .build()
 
   app.useGlobalPipes(
-  new ValidationPipe({
-    transform:true,
-    whitelist:true,
-    exceptionFactory: (validationErrors: ValidationError[] = []) => {
-      return new BadRequestException(
-        validationErrors.map((error) => ({
-          field: error.property,
-          error: Object.values(error.constraints ?? "").join(', '),
-          })),
-        );
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      exceptionFactory: (validationErrors: ValidationError[] = []) => {
+        const formattedErrors = formatValidationErrors(validationErrors);
+        return new BadRequestException(formattedErrors);
       },
     }),
   );

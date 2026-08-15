@@ -41,6 +41,7 @@ model Event {
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
   organizer        User             @relation(name: "EventToUser", fields: [organizerId], references: [id])
+  orders           Order[]          @relation(name: "EventToOrder")
   categories       TicketCategory[] @relation(name: "EventToTicketCategory")
   gates            Gate[]           @relation(name: "EventToGate")
 
@@ -62,6 +63,7 @@ model TicketCategory {
   seats      Seat[]   @relation(name: "SeatToTicketCategory")
   tickets    Ticket[] @relation(name: "TicketToTicketCategory")
 
+  @@index([id, eventId])
   @@index([eventId])
   @@map("ticket_categories")
 }
@@ -76,22 +78,27 @@ model Seat {
   ticket     Ticket[]       @relation(name: "SeatToTicket")
 
   @@unique([categoryId, seatCode])
+  @@index([id, categoryId])
   @@map("seats")
 }
 
 model Order {
   id          String      @id @default(uuid(7)) @db.Uuid
   customerId  String      @map("customer_id") @db.Uuid
+  eventId     String      @map("event_id") @db.Uuid
   totalAmount Int         @map("total_amount")
   status      OrderStatus @default(HELD)
   expiresAt   DateTime    @map("expires_at")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
-
+  
+  
+  event       Event       @relation(name: "EventToOrder", fields: [eventId], references: [id])
   customer    User        @relation(name: "OrderToUser", fields: [customerId], references: [id])
   tickets     Ticket[]    @relation(name: "OrderToTicket")
   payments    Payment[]   @relation(name: "OrderToPayment")
 
+  @@index([eventId])
   @@index([customerId])
   @@index([status, expiresAt])
   @@map("orders")
@@ -206,6 +213,7 @@ enum Role {
 enum TicketStatus {
   AVAILABLE
   SEATED
+  CANCELLED
   EXPIRED
   REFUND
 }
@@ -214,6 +222,7 @@ enum OrderStatus {
   HELD
   PAYMENT_PENDING
   PAID
+  CANCELLED
   FULL_REFUND
   PARTIAL_REFUND
 }

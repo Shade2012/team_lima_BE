@@ -91,4 +91,38 @@ export class SeatService {
 
     return { seatsDeleted: result.count };
   }
+
+  async validateSeatsExistInCategory(
+    seats: { seatId: string; categoryId: string }[],
+  ): Promise<void> {
+    const seatIds = seats.map((s) => s.seatId).filter(Boolean);
+    if (seatIds.length === 0) return; 
+    const validSeats = await this.prisma.seat.findMany({
+      where: {
+        id: { in: seatIds },
+      },
+      select: {
+        id: true,
+        categoryId: true,
+      },
+    });
+
+    const validSeatMap = new Map(validSeats.map((s) => [s.id, s.categoryId]));
+
+    for (const seat of seats) {
+      if (!seat.seatId) continue;
+
+      const actualCategoryId = validSeatMap.get(seat.seatId);
+
+      if (!actualCategoryId) {
+        throw new NotFoundException(`Seat ${seat.seatId} does not exist`);
+      }
+
+      if (actualCategoryId !== seat.categoryId) {
+        throw new BadRequestException(
+          `Seat ${seat.seatId} does not belong to category ${seat.categoryId}`,
+        );
+      }
+    }
+  }
 }

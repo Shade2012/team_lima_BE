@@ -42,6 +42,20 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
             : 'A record with this unique value already exists';
           break;
         }
+        case 'P2003': {
+          status = HttpStatus.NOT_FOUND; // 404 Conflict
+          const target = (exception.meta?.target as string[])?.join(', ');
+          message = target
+            ? `Foreign key constraint failed on field: ${target}`
+            : 'Invalid reference: related record does not exist';
+          break;
+        }
+        case 'P2025': {
+          status = HttpStatus.NOT_FOUND; // 404 Not Found
+          const cause = exception.meta?.cause as string;
+          message = cause || 'Record to update or delete was not found';
+          break;
+        }
         case 'P2025': {
           status = HttpStatus.NOT_FOUND; // 404 Not Found
           const cause = exception.meta?.cause as string;

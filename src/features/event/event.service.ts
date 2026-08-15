@@ -4,6 +4,7 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Payload } from 'src/utils/payload';
 import { Event } from '@prisma/client';
+import { EventWithCategories } from './type/event-with-categories';
 
 @Injectable()
 export class EventService {
@@ -31,9 +32,12 @@ export class EventService {
     });
   }
 
-  async findOne(id: string): Promise<Event> {
+  async findOne(id: string): Promise<EventWithCategories> {
     const event = await this.prisma.event.findUnique({
       where: { id },
+      include:{
+        categories:true
+      }
     });
     if (!event) {
       throw new NotFoundException(`Event with id ${id} not found`);
