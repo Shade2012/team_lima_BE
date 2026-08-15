@@ -8,7 +8,7 @@ import { LoginUserDto } from './dto/login-user-dto';
 import { Payload } from 'src/utils/payload';
 import { AuthService } from '../auth/auth.service';
 import { CreateGateOperatorDto } from './dto/create-gate-operator.dto';
-import { EventService } from 'src/features/event/event.service';
+import { EventService } from 'src/features/event_management/event/event.service';
 
 @Injectable()
 export class UserService {

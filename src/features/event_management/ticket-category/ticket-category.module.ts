@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TicketCategoryService } from './ticket-category.service';
 import { TicketCategoryController } from './ticket-category.controller';
-import { EventModule } from 'src/features/event/event.module';
+import { EventModule } from 'src/features/event_management/event/event.module';
 
 @Module({
   imports: [EventModule],

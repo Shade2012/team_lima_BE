@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { CreateGateDto } from './dto/create-gate.dto';
 import { UpdateGateDto } from './dto/update-gate.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { EventService } from 'src/features/event/event.service';
+import { EventService } from 'src/features/event_management/event/event.service';
 import { Payload } from 'src/utils/payload';
 import { Gate } from '@prisma/client';
 

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { AuthModule } from '../auth/auth.module';
-import { EventModule } from 'src/features/event/event.module';
+import { EventModule } from 'src/features/event_management/event/event.module';
 
 @Module({
   controllers: [UserController],
