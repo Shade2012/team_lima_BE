@@ -81,7 +81,30 @@ describe('MockPgService', () => {
 
       expect(result).toBe(true);
       
-      expect(paymentService.processPaymentSuccess).toHaveBeenCalledWith('pay-123', validToken);
+      expect(paymentService.processPaymentSuccess).toHaveBeenCalledWith('pay-123', validToken, undefined);
+      expect(ordersService.handlePaymentSuccess).toHaveBeenCalledWith('order-123');
+    });
+
+    it('should forward paymentMethod if provided in SimulatePaymentDto', async () => {
+      const tokenPayload = { paymentId: 'pay-123', orderId: 'order-123' };
+      const validToken = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
+
+      const dto: SimulatePaymentDto = {
+        providerTrxId: validToken,
+        paymentMethod: PaymentMethod.QRIS,
+      };
+
+      paymentService.processPaymentSuccess.mockResolvedValue(undefined);
+      ordersService.handlePaymentSuccess.mockResolvedValue(undefined);
+
+      const result = await service.simulatePayment(dto);
+
+      expect(result).toBe(true);
+      expect(paymentService.processPaymentSuccess).toHaveBeenCalledWith(
+        'pay-123',
+        validToken,
+        PaymentMethod.QRIS,
+      );
       expect(ordersService.handlePaymentSuccess).toHaveBeenCalledWith('order-123');
     });
 
