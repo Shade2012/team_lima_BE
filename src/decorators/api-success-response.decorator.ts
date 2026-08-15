@@ -25,6 +25,7 @@ export function ApiSuccessResponse(
   type?: ResponseType,
   status = 200,
   message = 'Request successful',
+  isArray = false,
 ) {
   const isPrimitive = typeof type === 'string';
 
@@ -45,7 +46,14 @@ export function ApiSuccessResponse(
               },
               {
                 properties: {
-                  data: isPrimitive
+                  data: isArray
+                    ? {
+                        type: 'array',
+                        items: isPrimitive
+                          ? { type }
+                          : { $ref: getSchemaPath(type) },
+                      }
+                    : isPrimitive
                     ? {
                         type,
                       }
