@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsEnum } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 import { PaymentMethod } from '@prisma/client';
 
 export class SimulatePaymentDto {
@@ -8,9 +8,10 @@ export class SimulatePaymentDto {
   @IsNotEmpty()
   providerTrxId: string;
 
-  @ApiPropertyOptional({ enum: PaymentMethod, description: 'Selected payment method chosen on Snap UI' })
-  @IsOptional()
+  @ApiProperty({ enum: PaymentMethod, description: 'Selected payment method chosen on Snap UI' })
   @IsEnum(PaymentMethod)
-  paymentMethod?: PaymentMethod;
+  @IsNotEmpty()
+  paymentMethod: PaymentMethod;
 }
+
 

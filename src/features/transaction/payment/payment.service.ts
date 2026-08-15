@@ -9,7 +9,7 @@ export class PaymentService {
   async processPaymentSuccess(
     paymentId: string,
     providerTrxId: string,
-    paymentMethod?: PaymentMethod,
+    paymentMethod: PaymentMethod,
   ): Promise<void> {
     const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
     if (!payment) {
@@ -21,9 +21,10 @@ export class PaymentService {
       data: {
         status: 'SUCCESS',
         providerTrxId: providerTrxId,
-        ...(paymentMethod ? { method: paymentMethod } : {}),
+        method: paymentMethod,
       },
     });
   }
 }
+
 

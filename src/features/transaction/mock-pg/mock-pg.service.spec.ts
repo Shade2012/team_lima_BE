@@ -69,25 +69,6 @@ describe('MockPgService', () => {
     it('should successfully decode token and call internal services (Happy Path)', async () => {
       const tokenPayload = { paymentId: 'pay-123', orderId: 'order-123' };
       const validToken = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
-      
-      const dto: SimulatePaymentDto = {
-        providerTrxId: validToken,
-      };
-
-      paymentService.processPaymentSuccess.mockResolvedValue(undefined);
-      ordersService.handlePaymentSuccess.mockResolvedValue(undefined);
-
-      const result = await service.simulatePayment(dto);
-
-      expect(result).toBe(true);
-      
-      expect(paymentService.processPaymentSuccess).toHaveBeenCalledWith('pay-123', validToken, undefined);
-      expect(ordersService.handlePaymentSuccess).toHaveBeenCalledWith('order-123');
-    });
-
-    it('should forward paymentMethod if provided in SimulatePaymentDto', async () => {
-      const tokenPayload = { paymentId: 'pay-123', orderId: 'order-123' };
-      const validToken = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
 
       const dto: SimulatePaymentDto = {
         providerTrxId: validToken,
@@ -100,6 +81,7 @@ describe('MockPgService', () => {
       const result = await service.simulatePayment(dto);
 
       expect(result).toBe(true);
+
       expect(paymentService.processPaymentSuccess).toHaveBeenCalledWith(
         'pay-123',
         validToken,
@@ -110,17 +92,23 @@ describe('MockPgService', () => {
 
     it('should throw BadRequestException if token is invalid or missing IDs', async () => {
       const invalidToken = 'not-a-base64-json';
-      const dto: SimulatePaymentDto = { providerTrxId: invalidToken };
+      const dto: SimulatePaymentDto = {
+        providerTrxId: invalidToken,
+        paymentMethod: PaymentMethod.QRIS,
+      };
 
       await expect(service.simulatePayment(dto)).rejects.toThrow(BadRequestException);
 
-      //valid base64 tapi miss IDs
+      // valid base64 tapi miss IDs
       const missingIdsPayload = { someOtherField: '123' };
       const missingIdsToken = Buffer.from(JSON.stringify(missingIdsPayload)).toString('base64');
-      const dto2: SimulatePaymentDto = { providerTrxId: missingIdsToken };
+      const dto2: SimulatePaymentDto = {
+        providerTrxId: missingIdsToken,
+        paymentMethod: PaymentMethod.QRIS,
+      };
 
       await expect(service.simulatePayment(dto2)).rejects.toThrow(BadRequestException);
-      
+
       expect(paymentService.processPaymentSuccess).not.toHaveBeenCalled();
       expect(ordersService.handlePaymentSuccess).not.toHaveBeenCalled();
     });
@@ -128,7 +116,10 @@ describe('MockPgService', () => {
     it('should throw InternalServerErrorException if an internal service fails', async () => {
       const tokenPayload = { paymentId: 'pay-123', orderId: 'order-123' };
       const validToken = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
-      const dto: SimulatePaymentDto = { providerTrxId: validToken };
+      const dto: SimulatePaymentDto = {
+        providerTrxId: validToken,
+        paymentMethod: PaymentMethod.QRIS,
+      };
 
       paymentService.processPaymentSuccess.mockRejectedValue(new Error('DB Error'));
 
