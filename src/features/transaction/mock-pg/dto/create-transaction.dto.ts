@@ -1,6 +1,6 @@
-import { IsUUID, IsNumber, IsNotEmpty, IsEnum } from 'class-validator';
+import { IsUUID, IsNumber, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
 import { PaymentMethod } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTransactionDto {
   @ApiProperty({ description: 'The unique Payment ID from the database' })
@@ -18,3 +18,4 @@ export class CreateTransactionDto {
   @IsNotEmpty()
   amount!: number;
 }
+

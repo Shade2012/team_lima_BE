@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventService } from './event.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { Payload } from 'src/utils/payload';
-import { Role } from '@prisma/client';
+import { Role, OrderStatus, TicketStatus } from '@prisma/client';
 
 const mockEvent = {
   id: '019146a0-7d1e-7abc-9a12-abcdef123456',
@@ -34,8 +34,8 @@ describe('EventService', () => {
   let service: EventService;
   let prisma: typeof mockPrismaService;
 
-  const organizerPayload = new Payload('organizer-uuid-001', 'organizer1', Role.ORGANIZER);
-  const otherPayload = new Payload('other-uuid-999', 'other_user', Role.ORGANIZER);
+  const organizerPayload = new Payload('organizer-uuid-001', 'organizer1', Role.ORGANIZER, 123456, 123456);
+  const otherPayload = new Payload('other-uuid-999', 'other_user', Role.ORGANIZER, 123456, 123456);
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -109,12 +109,28 @@ describe('EventService', () => {
   });
 
   describe('findByOrganizer', () => {
-    it('should return events by organizerId', async () => {
+    it('should return events by organizerId without refundPercentage', async () => {
+      const { refundPercentage, ...mockOrganizerEvent } = mockEvent;
+      prisma.event.findMany.mockResolvedValueOnce([mockOrganizerEvent]);
+
       const result = await service.findByOrganizer('organizer-uuid-001');
 
-      expect(result).toEqual([mockEvent]);
+      expect(result).toEqual([mockOrganizerEvent]);
       expect(prisma.event.findMany).toHaveBeenCalledWith({
         where: { organizerId: 'organizer-uuid-001' },
+        select: {
+          id: true,
+          organizerId: true,
+          name: true,
+          isSeated: true,
+          salesStartTime: true,
+          salesEndTime: true,
+          eventDate: true,
+          refundEndDate: true,
+          refundPolicy: true,
+          createdAt: true,
+          updatedAt: true,
+        },
         orderBy: { eventDate: 'asc' },
       });
     });
@@ -149,6 +165,38 @@ describe('EventService', () => {
         NotFoundException,
       );
     });
+
+    it('should throw BadRequestException if salesEndTime is before salesStartTime', async () => {
+      const dto = { salesEndTime: new Date('2026-08-01T00:00:00.000Z') };
+
+      await expect(service.update(mockEvent.id, dto, organizerPayload)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if eventDate is before salesEndTime', async () => {
+      const dto = { eventDate: new Date('2026-09-10T00:00:00.000Z') };
+
+      await expect(service.update(mockEvent.id, dto, organizerPayload)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if eventDate is before refundEndDate', async () => {
+      const dto = { eventDate: new Date('2026-09-20T00:00:00.000Z') };
+
+      await expect(service.update(mockEvent.id, dto, organizerPayload)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if refundEndDate is before salesStartTime', async () => {
+      const dto = { refundEndDate: new Date('2026-08-01T00:00:00.000Z') };
+
+      await expect(service.update(mockEvent.id, dto, organizerPayload)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
   });
 
   describe('remove', () => {
@@ -174,6 +222,132 @@ describe('EventService', () => {
       await expect(service.remove('nonexistent-id', organizerPayload)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('getEventStatistics', () => {
+    const mockEventWithDetails = {
+      ...mockEvent,
+      categories: [
+        {
+          id: 'cat-vip',
+          name: 'VIP',
+          price: 100000,
+          totalQuota: 100,
+          tickets: [
+            {
+              id: 'ticket-1',
+              status: TicketStatus.AVAILABLE,
+              order: { status: OrderStatus.PAID },
+              refund: null,
+            },
+            {
+              id: 'ticket-2',
+              status: TicketStatus.SEATED,
+              order: { status: OrderStatus.PAID },
+              refund: null,
+            },
+            {
+              id: 'ticket-3',
+              status: TicketStatus.REFUND,
+              order: { status: OrderStatus.PAID },
+              refund: { amount: 80000 },
+            },
+            {
+              id: 'ticket-4',
+              status: TicketStatus.AVAILABLE,
+              order: { status: OrderStatus.PAYMENT_PENDING },
+              refund: null,
+            },
+          ],
+        },
+        {
+          id: 'cat-reg',
+          name: 'Regular',
+          price: 50000,
+          totalQuota: 100,
+          tickets: [
+            {
+              id: 'ticket-5',
+              status: TicketStatus.AVAILABLE,
+              order: { status: OrderStatus.PAID },
+              refund: null,
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should successfully calculate total tickets sold and revenue with category breakdown', async () => {
+      prisma.event.findUnique.mockResolvedValueOnce(mockEventWithDetails);
+
+      const result = await service.getEventStatistics(mockEvent.id, organizerPayload);
+
+      expect(result).toEqual({
+        eventId: mockEvent.id,
+        eventName: mockEvent.name,
+        totalQuota: 200,
+        totalTicketsSold: 3,
+        grossRevenue: 250000,
+        totalRefundCount: 1,
+        totalRefundAmount: 80000,
+        netRevenue: 170000,
+        percentageSold: 1.5,
+        refundPercentage: 32,
+        categories: [
+          {
+            categoryId: 'cat-vip',
+            categoryName: 'VIP',
+            price: 100000,
+            totalQuota: 100,
+            ticketsSold: 2,
+            grossRevenue: 200000,
+            refundCount: 1,
+            totalRefundAmount: 80000,
+            refundPercentage: 40,
+          },
+          {
+            categoryId: 'cat-reg',
+            categoryName: 'Regular',
+            price: 50000,
+            totalQuota: 100,
+            ticketsSold: 1,
+            grossRevenue: 50000,
+            refundCount: 0,
+            totalRefundAmount: 0,
+            refundPercentage: 0,
+          },
+        ],
+      });
+      expect(prisma.event.findUnique).toHaveBeenCalledWith({
+        where: { id: mockEvent.id },
+        include: {
+          categories: {
+            include: {
+              tickets: {
+                include: {
+                  order: true,
+                  refund: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    it('should throw NotFoundException if event does not exist', async () => {
+      prisma.event.findUnique.mockResolvedValueOnce(null);
+
+      await expect(service.getEventStatistics('nonexistent-id', organizerPayload)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw ForbiddenException if organizer is not the owner', async () => {
+      await expect(
+        service.getEventStatistics(mockEvent.id, otherPayload),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

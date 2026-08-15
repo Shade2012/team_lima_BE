@@ -49,7 +49,11 @@ export class MockPgService {
     }
 
     try {
-      await this.paymentService.processPaymentSuccess(paymentId, dto.providerTrxId);
+      await this.paymentService.processPaymentSuccess(
+        paymentId,
+        dto.providerTrxId,
+        dto.paymentMethod,
+      );
 
       await this.orderService.updateOrderStatus(orderId, OrderStatus.PAID);
 

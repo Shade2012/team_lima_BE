@@ -36,7 +36,7 @@ export class OrderController {
   @ApiBearerAuth()
   @UserRoleExt(Role.CUSTOMER)
   @ApiOperation({summary: 'See all order' })
-  @ApiSuccessResponse([OrderResponseDto], 200,'Get All Order')
+  @ApiSuccessResponse(OrderResponseDto, 200,'Get All Order',true)
   @ApiFailureResponse(404,'Order not found')
   @Get('customer')
   findAll(

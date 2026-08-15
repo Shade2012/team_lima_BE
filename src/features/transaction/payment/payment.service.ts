@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { OrderService } from '../order/order.service';
 import { MockPgService } from '../mock-pg/mock-pg.service';
 import { CreateTransactionDto } from '../mock-pg/dto/create-transaction.dto';
+import { PaymentMethod } from '@prisma/client';
 
 @Injectable()
 export class PaymentService {
@@ -14,7 +15,11 @@ export class PaymentService {
     private readonly mockPgService: MockPgService
   ) {}
 
-  async processPaymentSuccess(paymentId: string, providerTrxId: string): Promise<void> {
+  async processPaymentSuccess(
+    paymentId: string,
+    providerTrxId: string,
+    paymentMethod: PaymentMethod,
+  ): Promise<void> {
     const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
     if (!payment) {
       throw new NotFoundException(`Payment with ID ${paymentId} not found`);
@@ -25,6 +30,7 @@ export class PaymentService {
       data: {
         status: 'SUCCESS',
         providerTrxId: providerTrxId,
+        method: paymentMethod,
       },
     });
   }
@@ -100,3 +106,5 @@ export class PaymentService {
     };
   }
 }
+
+
