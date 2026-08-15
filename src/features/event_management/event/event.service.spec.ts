@@ -109,12 +109,28 @@ describe('EventService', () => {
   });
 
   describe('findByOrganizer', () => {
-    it('should return events by organizerId', async () => {
+    it('should return events by organizerId without refundPercentage', async () => {
+      const { refundPercentage, ...mockOrganizerEvent } = mockEvent;
+      prisma.event.findMany.mockResolvedValueOnce([mockOrganizerEvent]);
+
       const result = await service.findByOrganizer('organizer-uuid-001');
 
-      expect(result).toEqual([mockEvent]);
+      expect(result).toEqual([mockOrganizerEvent]);
       expect(prisma.event.findMany).toHaveBeenCalledWith({
         where: { organizerId: 'organizer-uuid-001' },
+        select: {
+          id: true,
+          organizerId: true,
+          name: true,
+          isSeated: true,
+          salesStartTime: true,
+          salesEndTime: true,
+          eventDate: true,
+          refundEndDate: true,
+          refundPolicy: true,
+          createdAt: true,
+          updatedAt: true,
+        },
         orderBy: { eventDate: 'asc' },
       });
     });
@@ -241,9 +257,11 @@ describe('EventService', () => {
         totalQuota: 200,
         totalTicketsSold: 3,
         grossRevenue: 250000,
+        totalRefundCount: 1,
         totalRefundAmount: 80000,
         netRevenue: 170000,
         percentageSold: 1.5,
+        refundPercentage: 32,
         categories: [
           {
             categoryId: 'cat-vip',
@@ -252,6 +270,9 @@ describe('EventService', () => {
             totalQuota: 100,
             ticketsSold: 2,
             grossRevenue: 200000,
+            refundCount: 1,
+            totalRefundAmount: 80000,
+            refundPercentage: 40,
           },
           {
             categoryId: 'cat-reg',
@@ -260,6 +281,9 @@ describe('EventService', () => {
             totalQuota: 100,
             ticketsSold: 1,
             grossRevenue: 50000,
+            refundCount: 0,
+            totalRefundAmount: 0,
+            refundPercentage: 0,
           },
         ],
       });

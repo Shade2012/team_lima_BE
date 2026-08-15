@@ -45,9 +45,22 @@ export class EventService {
     return event;
   }
 
-  async findByOrganizer(organizerId: string): Promise<Event[]> {
+  async findByOrganizer(organizerId: string): Promise<Omit<Event, 'refundPercentage'>[]> {
     return this.prisma.event.findMany({
       where: { organizerId },
+      select: {
+        id: true,
+        organizerId: true,
+        name: true,
+        isSeated: true,
+        salesStartTime: true,
+        salesEndTime: true,
+        eventDate: true,
+        refundEndDate: true,
+        refundPolicy: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { eventDate: 'asc' },
     });
   }
@@ -112,6 +125,8 @@ export class EventService {
 
     const categories: CategoryStatisticsResponseDto[] = (event.categories || []).map((cat: any) => {
       let catTicketsSold = 0;
+      let catRefundCount = 0;
+      let catRefundAmount = 0;
 
       for (const ticket of cat.tickets || []) {
         if (ticket.order?.status === OrderStatus.PAID && ticket.status !== TicketStatus.REFUND) {
@@ -120,10 +135,16 @@ export class EventService {
 
         if (ticket.refund?.amount) {
           totalRefundAmount += ticket.refund.amount;
+          catRefundAmount += ticket.refund.amount;
+          catRefundCount += 1;
         }
       }
 
       const grossRevenue = catTicketsSold * cat.price;
+      const catRefundPercentage =
+        grossRevenue > 0
+          ? Math.round(((catRefundAmount / grossRevenue) * 100) * 100) / 100
+          : 0;
 
       return {
         categoryId: cat.id,
@@ -132,14 +153,23 @@ export class EventService {
         totalQuota: cat.totalQuota,
         ticketsSold: catTicketsSold,
         grossRevenue,
+        refundCount: catRefundCount,
+        totalRefundAmount: catRefundAmount,
+        refundPercentage: catRefundPercentage,
       };
     });
 
     const totalQuota = categories.reduce((sum, c) => sum + c.totalQuota, 0);
     const totalTicketsSold = categories.reduce((sum, c) => sum + c.ticketsSold, 0);
+    const totalRefundCount = categories.reduce((sum, c) => sum + c.refundCount, 0);
     const grossRevenue = categories.reduce((sum, c) => sum + c.grossRevenue, 0);
     const netRevenue = grossRevenue - totalRefundAmount;
-    const percentageSold = totalQuota > 0 ? Math.round(((totalTicketsSold / totalQuota) * 100) * 100) / 100 : 0;
+    const percentageSold =
+      totalQuota > 0 ? Math.round(((totalTicketsSold / totalQuota) * 100) * 100) / 100 : 0;
+    const refundPercentage =
+      grossRevenue > 0
+        ? Math.round(((totalRefundAmount / grossRevenue) * 100) * 100) / 100
+        : 0;
 
     return {
       eventId: event.id,
@@ -147,9 +177,11 @@ export class EventService {
       totalQuota,
       totalTicketsSold,
       grossRevenue,
+      totalRefundCount,
       totalRefundAmount,
       netRevenue,
       percentageSold,
+      refundPercentage,
       categories,
     };
   }

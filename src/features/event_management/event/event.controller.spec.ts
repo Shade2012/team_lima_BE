@@ -19,15 +19,19 @@ const mockEvent = {
   updatedAt: new Date('2026-08-10T10:00:00.000Z'),
 };
 
+const { refundPercentage, ...mockOrganizerEvent } = mockEvent;
+
 const mockEventStats = {
   eventId: mockEvent.id,
   eventName: mockEvent.name,
   totalQuota: 200,
   totalTicketsSold: 50,
   grossRevenue: 5000000,
+  totalRefundCount: 0,
   totalRefundAmount: 0,
   netRevenue: 5000000,
   percentageSold: 25,
+  refundPercentage: 0,
   categories: [],
 };
 
@@ -35,7 +39,7 @@ const mockEventService = {
   create: jest.fn().mockResolvedValue(mockEvent),
   findAll: jest.fn().mockResolvedValue([mockEvent]),
   findOne: jest.fn().mockResolvedValue(mockEvent),
-  findByOrganizer: jest.fn().mockResolvedValue([mockEvent]),
+  findByOrganizer: jest.fn().mockResolvedValue([mockOrganizerEvent]),
   update: jest.fn().mockResolvedValue({ ...mockEvent, name: 'Updated Concert' }),
   remove: jest.fn().mockResolvedValue(mockEvent),
   getEventStatistics: jest.fn().mockResolvedValue(mockEventStats),
@@ -107,7 +111,7 @@ describe('EventController', () => {
     it('should return events for the logged-in organizer', async () => {
       const result = await controller.findMyEvents(payload);
 
-      expect(result).toEqual([mockEvent]);
+      expect(result).toEqual([mockOrganizerEvent]);
       expect(service.findByOrganizer).toHaveBeenCalledWith(payload.sub);
     });
   });

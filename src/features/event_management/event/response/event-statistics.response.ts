@@ -18,6 +18,15 @@ export class CategoryStatisticsResponseDto {
 
   @ApiProperty({ example: 37500000 })
   grossRevenue!: number;
+
+  @ApiProperty({ example: 2 })
+  refundCount!: number;
+
+  @ApiProperty({ example: 1000000 })
+  totalRefundAmount!: number;
+
+  @ApiProperty({ example: 2.67 })
+  refundPercentage!: number;
 }
 
 export class EventStatisticsResponseDto {
@@ -36,6 +45,9 @@ export class EventStatisticsResponseDto {
   @ApiProperty({ example: 175000000 })
   grossRevenue!: number;
 
+  @ApiProperty({ example: 10 })
+  totalRefundCount!: number;
+
   @ApiProperty({ example: 5000000 })
   totalRefundAmount!: number;
 
@@ -45,6 +57,10 @@ export class EventStatisticsResponseDto {
   @ApiProperty({ example: 70 })
   percentageSold!: number;
 
+  @ApiProperty({ example: 2.86 })
+  refundPercentage!: number;
+
   @ApiProperty({ type: [CategoryStatisticsResponseDto] })
   categories!: CategoryStatisticsResponseDto[];
 }
+

@@ -28,12 +28,11 @@ export class EventResponseDto {
   @ApiProperty({ example: 'Refund hanya dapat dilakukan maksimal 7 hari sebelum event.' })
   refundPolicy!: string;
 
-  @ApiProperty({ example: 80 })
-  refundPercentage!: number;
-
   @ApiProperty({ example: '2026-08-10T10:00:00.000Z' })
   createdAt!: string;
 
   @ApiProperty({ example: '2026-08-10T10:00:00.000Z' })
   updatedAt!: string;
 }
+
+
