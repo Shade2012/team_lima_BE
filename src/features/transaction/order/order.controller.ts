@@ -10,6 +10,7 @@ import { Role } from '@prisma/client';
 import { ApiSuccessResponse, PrimitiveType } from 'src/decorators/api-success-response.decorator';
 import { OrderResponseDto } from './response/order-response.dto';
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
+import { CreateOrderResponseDto } from './response/create-order-response.dto';
 
 @Controller('orders')
 export class OrderController {
@@ -18,7 +19,7 @@ export class OrderController {
   @ApiBearerAuth()
   @UserRoleExt(Role.CUSTOMER)
   @ApiOperation({summary: 'Create a order return a checkout url' })
-  @ApiSuccessResponse(PrimitiveType.STRING, 201,'Checkout url')
+  @ApiSuccessResponse(CreateOrderResponseDto, 201,'Checkout url')
   @ApiFailureResponse(400, 'Invalid Request / Quota Full / Category does not belong to this event')
   @ApiFailureResponse(403, 'Forbidden')
   @ApiFailureResponse(404, 'Event not found')
@@ -56,10 +57,10 @@ export class OrderController {
     return this.orderService.findOne(id, payload.sub);
   }
 
-  // @UserRoleExt(Role.CUSTOMER)
-  // @Get('clear')
-  // clear(
-  // ) {
-  //   return this.orderService.clear();
-  // }
+  @UserRoleExt(Role.CUSTOMER)
+  @Get('clear')
+  clear(
+  ) {
+    return this.orderService.clear();
+  }
 }

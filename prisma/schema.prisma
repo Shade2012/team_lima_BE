@@ -238,7 +238,8 @@ enum PaymentStatus {
 
 enum PaymentMethod {
   VIRTUAL_ACCOUNT
-  E_WALLET
-  QRIS
+  GOPAY
+  SHOPPE_PAY
+  OVO
 }
 

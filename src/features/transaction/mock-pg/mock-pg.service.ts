@@ -26,6 +26,10 @@ export class MockPgService {
     };
   }
 
+  getSnapTokenByCheckoutUrl(checkoutUrl:string){
+    return checkoutUrl.split('/').pop();
+  }
+
   async simulatePayment(dto: SimulatePaymentDto): Promise<boolean> {
     let paymentId: string;
     let orderId: string;

@@ -41,37 +41,39 @@ export class PaymentService {
   }
 
 
-async createCheckoutSession(orderId: string, customerId: string) {
-  const order = await this.orderService.findOne(orderId, customerId);
-  const payment = await this.prisma.payment.create({
-    data: {
-      amount: order.totalAmount,
+  async createCheckoutSession(orderId: string, customerId: string) {
+    const order = await this.orderService.findOne(orderId, customerId);
+    const payment = await this.prisma.payment.create({
+      data: {
+        amount: order.totalAmount,
+        orderId: order.id,
+        status: 'PENDING',
+      },
+    });
+
+    const { snapToken, checkoutUrl } = await this.generateTransaction(
+      payment.id,
+      order.id,
+      order.totalAmount,
+    );
+
+    await Promise.all([
+      this.orderService.markAsPaymentPending(orderId, customerId),
+      this.prisma.payment.update({
+        where: { id: payment.id },
+        data: { providerTrxId: snapToken },
+      }),
+    ]);
+
+    return {
       orderId: order.id,
-      status: 'PENDING',
-    },
-  });
+      checkoutUrl,
+      providerTrxId: snapToken,
+      totalAmount: order.totalAmount
+    };
+  }
 
-  const { snapToken, checkoutUrl } = await this.generateTransaction(
-    payment.id,
-    order.id,
-    order.totalAmount,
-  );
-
-  await Promise.all([
-    this.orderService.markAsPaymentPending(orderId, customerId),
-    this.prisma.payment.update({
-      where: { id: payment.id },
-      data: { providerTrxId: snapToken },
-    }),
-  ]);
-
-  return {
-    orderId: order.id,
-    checkoutUrl,
-  };
-}
-
-async existingCheckoutSession(orderId: string, customerId: string) {
+  async existingCheckoutSession(orderId: string, customerId: string) {
     await this.orderService.findOne(orderId, customerId);
     const payment = await this.prisma.payment.findFirst({
       where: { 
@@ -85,7 +87,7 @@ async existingCheckoutSession(orderId: string, customerId: string) {
       throw new NotFoundException('Payment not found');
     }
 
-    const { checkoutUrl } = await this.generateTransaction(
+    const { snapToken, checkoutUrl } = await this.generateTransaction(
       payment.id,
       orderId,
       payment.amount,
@@ -94,6 +96,7 @@ async existingCheckoutSession(orderId: string, customerId: string) {
     return {
       orderId,
       checkoutUrl,
+      providerTrxId: snapToken,
     };
   }
 }

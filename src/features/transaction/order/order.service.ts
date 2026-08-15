@@ -138,13 +138,13 @@ export class OrderService {
     
     const orderKey = `order:customer:${customerId}:event:${order.eventId}`;
     const endSalesTimestamp = Math.floor(new Date(order.event.salesEndTime).getTime() / 1000);
-    const extensionSeconds = 900; 
+    const paymentHoldSeconds = 900; 
 
     const [status, resultVal] = await this.redis.extendsPaymentPending(
       1,
       orderKey,
       String(endSalesTimestamp),
-      String(extensionSeconds),
+      String(paymentHoldSeconds),
     );
 
     if (status === 0) {
@@ -367,10 +367,12 @@ async cancelExpiredOrder(orderId: string, categoryCounts?: Record<string, number
     });
 
     if (existingOrder && ['HELD', 'PAYMENT_PENDING'].includes(existingOrder.status)) {
-      const { orderId, checkoutUrl } = await this.paymentService.existingCheckoutSession(existingOrder.id, existingOrder.customerId)
+      const { orderId, checkoutUrl, providerTrxId } = await this.paymentService.existingCheckoutSession(existingOrder.id, existingOrder.customerId)
       return {
+        providerTrxId,
         orderId: existingOrder.id,
         status: existingOrder.status,
+        totalAmount: existingOrder.totalAmount,
         checkoutUrl: checkoutUrl,
         expiresAt: existingOrder.expiresAt,
         isReusedSession: true,

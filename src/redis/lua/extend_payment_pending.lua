@@ -2,9 +2,9 @@
 -- ARGV[1] = end_sales_timestamp (unix seconds)
 -- ARGV[2] = extension_sec (e.g., 900 seconds = +15 mins)
 
-local order_key   = KEYS[1]
-local end_sales   = tonumber(ARGV[1])
-local add_sec     = tonumber(ARGV[2])
+local order_key        = KEYS[1]
+local end_sales        = tonumber(ARGV[1])
+local payment_hold_sec = tonumber(ARGV[2])
 
 -- 1. Get current Redis time
 local time_res = redis.call("TIME")
@@ -28,7 +28,7 @@ end
 
 -- 4. Calculate new TTL capped by remaining sales time
 local remaining_sales = end_sales - now
-local new_ttl = math.min(current_ttl + add_sec, remaining_sales)
+local new_ttl = math.min(payment_hold_sec, remaining_sales)
 
 if new_ttl <= 0 then
     return {0, "SALES_ENDED"}
