@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventService } from './event.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { Payload } from 'src/utils/payload';
 import { Role, OrderStatus, TicketStatus } from '@prisma/client';
 
@@ -147,6 +147,38 @@ describe('EventService', () => {
 
       await expect(service.update('nonexistent-id', {}, organizerPayload)).rejects.toThrow(
         NotFoundException,
+      );
+    });
+
+    it('should throw BadRequestException if salesEndTime is before salesStartTime', async () => {
+      const dto = { salesEndTime: new Date('2026-08-01T00:00:00.000Z') };
+
+      await expect(service.update(mockEvent.id, dto, organizerPayload)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if eventDate is before salesEndTime', async () => {
+      const dto = { eventDate: new Date('2026-09-10T00:00:00.000Z') };
+
+      await expect(service.update(mockEvent.id, dto, organizerPayload)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if eventDate is before refundEndDate', async () => {
+      const dto = { eventDate: new Date('2026-09-20T00:00:00.000Z') };
+
+      await expect(service.update(mockEvent.id, dto, organizerPayload)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if refundEndDate is before salesStartTime', async () => {
+      const dto = { refundEndDate: new Date('2026-08-01T00:00:00.000Z') };
+
+      await expect(service.update(mockEvent.id, dto, organizerPayload)).rejects.toThrow(
+        BadRequestException,
       );
     });
   });

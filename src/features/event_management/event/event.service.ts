@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -58,6 +58,24 @@ export class EventService {
 
     if (event.organizerId !== payload.sub) {
       throw new ForbiddenException('You do not have permission to update this event');
+    }
+
+    const salesStartTime = dto.salesStartTime ? new Date(dto.salesStartTime) : new Date(event.salesStartTime);
+    const salesEndTime = dto.salesEndTime ? new Date(dto.salesEndTime) : new Date(event.salesEndTime);
+    const eventDate = dto.eventDate ? new Date(dto.eventDate) : new Date(event.eventDate);
+    const refundEndDate = dto.refundEndDate ? new Date(dto.refundEndDate) : new Date(event.refundEndDate);
+
+    if (salesEndTime.getTime() <= salesStartTime.getTime()) {
+      throw new BadRequestException('salesEndTime must be after salesStartTime');
+    }
+    if (eventDate.getTime() <= salesEndTime.getTime()) {
+      throw new BadRequestException('eventDate must be after salesEndTime');
+    }
+    if (eventDate.getTime() <= refundEndDate.getTime()) {
+      throw new BadRequestException('eventDate must be after refundEndDate');
+    }
+    if (refundEndDate.getTime() <= salesStartTime.getTime()) {
+      throw new BadRequestException('refundEndDate must be after salesStartTime');
     }
 
     return this.prisma.event.update({

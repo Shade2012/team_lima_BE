@@ -8,6 +8,7 @@ import {
   IsString,
   Max,
   Min,
+  MinDate,
 } from 'class-validator';
 import { IsAfter } from 'src/validators/is-after.validator';
 
@@ -34,6 +35,9 @@ export class CreateEventDto {
   })
   @IsNotEmpty()
   @IsDate()
+  @MinDate(() => new Date(), {
+    message: 'salesStartTime must not be in the past',
+  })
   @Type(() => Date)
   salesStartTime!: Date;
 
