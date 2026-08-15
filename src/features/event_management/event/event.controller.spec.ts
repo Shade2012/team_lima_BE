@@ -19,6 +19,26 @@ const mockEvent = {
   updatedAt: new Date('2026-08-10T10:00:00.000Z'),
 };
 
+const mockEventStats = {
+  eventId: mockEvent.id,
+  eventName: mockEvent.name,
+  totalQuota: 200,
+  totalTicketsSold: 50,
+  grossRevenue: 5000000,
+  totalRefundAmount: 0,
+  netRevenue: 5000000,
+  percentageSold: 25,
+  categories: [],
+};
+
+const mockOrganizerSummary = {
+  totalEvents: 1,
+  totalTicketsSold: 50,
+  totalGrossRevenue: 5000000,
+  totalNetRevenue: 5000000,
+  events: [mockEventStats],
+};
+
 const mockEventService = {
   create: jest.fn().mockResolvedValue(mockEvent),
   findAll: jest.fn().mockResolvedValue([mockEvent]),
@@ -26,13 +46,15 @@ const mockEventService = {
   findByOrganizer: jest.fn().mockResolvedValue([mockEvent]),
   update: jest.fn().mockResolvedValue({ ...mockEvent, name: 'Updated Concert' }),
   remove: jest.fn().mockResolvedValue(mockEvent),
+  getEventStatistics: jest.fn().mockResolvedValue(mockEventStats),
+  getOrganizerSummary: jest.fn().mockResolvedValue(mockOrganizerSummary),
 };
 
 describe('EventController', () => {
   let controller: EventController;
   let service: typeof mockEventService;
 
-  const payload = new Payload('organizer-uuid-001', 'organizer1', Role.ORGANIZER);
+  const payload = new Payload('organizer-uuid-001', 'organizer1', Role.ORGANIZER, 123456, 123456);
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -99,6 +121,24 @@ describe('EventController', () => {
     });
   });
 
+  describe('getOrganizerSummary', () => {
+    it('should call service.getOrganizerSummary with payload', async () => {
+      const result = await controller.getOrganizerSummary(payload);
+
+      expect(result).toEqual(mockOrganizerSummary);
+      expect(service.getOrganizerSummary).toHaveBeenCalledWith(payload);
+    });
+  });
+
+  describe('getEventStatistics', () => {
+    it('should call service.getEventStatistics with id and payload', async () => {
+      const result = await controller.getEventStatistics(mockEvent.id, payload);
+
+      expect(result).toEqual(mockEventStats);
+      expect(service.getEventStatistics).toHaveBeenCalledWith(mockEvent.id, payload);
+    });
+  });
+
   describe('update', () => {
     it('should call service.update with id, dto, and payload', async () => {
       const dto = { name: 'Updated Concert' };
@@ -119,3 +159,4 @@ describe('EventController', () => {
     });
   });
 });
+

@@ -3,7 +3,7 @@ import { EventService } from './event.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Payload } from 'src/utils/payload';
-import { Role } from '@prisma/client';
+import { Role, OrderStatus, TicketStatus } from '@prisma/client';
 
 const mockEvent = {
   id: '019146a0-7d1e-7abc-9a12-abcdef123456',
@@ -34,8 +34,8 @@ describe('EventService', () => {
   let service: EventService;
   let prisma: typeof mockPrismaService;
 
-  const organizerPayload = new Payload('organizer-uuid-001', 'organizer1', Role.ORGANIZER);
-  const otherPayload = new Payload('other-uuid-999', 'other_user', Role.ORGANIZER);
+  const organizerPayload = new Payload('organizer-uuid-001', 'organizer1', Role.ORGANIZER, 123456, 123456);
+  const otherPayload = new Payload('other-uuid-999', 'other_user', Role.ORGANIZER, 123456, 123456);
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -176,4 +176,218 @@ describe('EventService', () => {
       );
     });
   });
+
+  describe('getEventStatistics', () => {
+    const mockEventWithDetails = {
+      ...mockEvent,
+      categories: [
+        {
+          id: 'cat-vip',
+          name: 'VIP',
+          price: 100000,
+          totalQuota: 100,
+          tickets: [
+            {
+              id: 'ticket-1',
+              status: TicketStatus.AVAILABLE,
+              order: { status: OrderStatus.PAID },
+              refund: null,
+            },
+            {
+              id: 'ticket-2',
+              status: TicketStatus.SEATED,
+              order: { status: OrderStatus.PAID },
+              refund: null,
+            },
+            {
+              id: 'ticket-3',
+              status: TicketStatus.REFUND,
+              order: { status: OrderStatus.PAID },
+              refund: { amount: 80000 },
+            },
+            {
+              id: 'ticket-4',
+              status: TicketStatus.AVAILABLE,
+              order: { status: OrderStatus.PAYMENT_PENDING },
+              refund: null,
+            },
+          ],
+        },
+        {
+          id: 'cat-reg',
+          name: 'Regular',
+          price: 50000,
+          totalQuota: 100,
+          tickets: [
+            {
+              id: 'ticket-5',
+              status: TicketStatus.AVAILABLE,
+              order: { status: OrderStatus.PAID },
+              refund: null,
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should successfully calculate total tickets sold and revenue with category breakdown', async () => {
+      prisma.event.findUnique.mockResolvedValueOnce(mockEventWithDetails);
+
+      const result = await service.getEventStatistics(mockEvent.id, organizerPayload);
+
+      expect(result).toEqual({
+        eventId: mockEvent.id,
+        eventName: mockEvent.name,
+        totalQuota: 200,
+        totalTicketsSold: 3,
+        grossRevenue: 250000,
+        totalRefundAmount: 80000,
+        netRevenue: 170000,
+        percentageSold: 1.5,
+        categories: [
+          {
+            categoryId: 'cat-vip',
+            categoryName: 'VIP',
+            price: 100000,
+            totalQuota: 100,
+            ticketsSold: 2,
+            grossRevenue: 200000,
+          },
+          {
+            categoryId: 'cat-reg',
+            categoryName: 'Regular',
+            price: 50000,
+            totalQuota: 100,
+            ticketsSold: 1,
+            grossRevenue: 50000,
+          },
+        ],
+      });
+      expect(prisma.event.findUnique).toHaveBeenCalledWith({
+        where: { id: mockEvent.id },
+        include: {
+          categories: {
+            include: {
+              tickets: {
+                include: {
+                  order: true,
+                  refund: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    it('should throw NotFoundException if event does not exist', async () => {
+      prisma.event.findUnique.mockResolvedValueOnce(null);
+
+      await expect(service.getEventStatistics('nonexistent-id', organizerPayload)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw ForbiddenException if organizer is not the owner', async () => {
+      prisma.event.findUnique.mockResolvedValueOnce(mockEventWithDetails);
+
+      await expect(service.getEventStatistics(mockEvent.id, otherPayload)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+  });
+
+  describe('getOrganizerSummary', () => {
+    const mockEvent1 = {
+      ...mockEvent,
+      id: 'event-1',
+      categories: [
+        {
+          id: 'cat-1',
+          name: 'VIP',
+          price: 100000,
+          totalQuota: 10,
+          tickets: [
+            {
+              id: 'ticket-1',
+              status: TicketStatus.AVAILABLE,
+              order: { status: OrderStatus.PAID },
+              refund: null,
+            },
+          ],
+        },
+      ],
+    };
+
+    const mockEvent2 = {
+      ...mockEvent,
+      id: 'event-2',
+      name: 'Second Concert',
+      categories: [
+        {
+          id: 'cat-2',
+          name: 'Regular',
+          price: 50000,
+          totalQuota: 20,
+          tickets: [
+            {
+              id: 'ticket-2',
+              status: TicketStatus.AVAILABLE,
+              order: { status: OrderStatus.PAID },
+              refund: null,
+            },
+            {
+              id: 'ticket-3',
+              status: TicketStatus.REFUND,
+              order: { status: OrderStatus.PAID },
+              refund: { amount: 40000 },
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should successfully aggregate totals across multiple organizer events', async () => {
+      prisma.event.findMany.mockResolvedValueOnce([mockEvent1, mockEvent2]);
+
+      const result = await service.getOrganizerSummary(organizerPayload);
+
+      expect(result.totalEvents).toBe(2);
+      expect(result.totalTicketsSold).toBe(2);
+      expect(result.totalGrossRevenue).toBe(150000);
+      expect(result.totalNetRevenue).toBe(110000);
+      expect(result.events.length).toBe(2);
+      expect(prisma.event.findMany).toHaveBeenCalledWith({
+        where: { organizerId: organizerPayload.sub },
+        include: {
+          categories: {
+            include: {
+              tickets: {
+                include: {
+                  order: true,
+                  refund: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { eventDate: 'asc' },
+      });
+    });
+
+    it('should return empty summary if organizer has no events', async () => {
+      prisma.event.findMany.mockResolvedValueOnce([]);
+
+      const result = await service.getOrganizerSummary(organizerPayload);
+
+      expect(result).toEqual({
+        totalEvents: 0,
+        totalTicketsSold: 0,
+        totalGrossRevenue: 0,
+        totalNetRevenue: 0,
+        events: [],
+      });
+    });
+  });
 });
+
