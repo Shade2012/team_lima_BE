@@ -1,5 +1,22 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export class GateOperatorResponseDto {
+  @ApiProperty({ example: '019146a0-7d1e-7abc-9a12-abcdef123456' })
+  id!: string;
+
+  @ApiProperty({ example: 'operator@gate.com' })
+  email!: string;
+
+  @ApiProperty({ example: 'operator123' })
+  username!: string;
+
+  @ApiProperty({ example: 'GATE_OPERATOR' })
+  role!: string;
+
+  @ApiProperty({ example: '2026-08-10T10:00:00.000Z' })
+  createdAt!: string;
+}
+
 export class GateResponseDto {
   @ApiProperty({ example: '019146a0-7d1e-7abc-9a12-abcdef123456' })
   id!: string;
@@ -15,4 +32,9 @@ export class GateResponseDto {
 
   @ApiProperty({ example: '2026-08-10T10:00:00.000Z' })
   updatedAt!: string;
+}
+
+export class GateDetailResponseDto extends GateResponseDto {
+  @ApiProperty({ type: [GateOperatorResponseDto] })
+  operators!: GateOperatorResponseDto[];
 }

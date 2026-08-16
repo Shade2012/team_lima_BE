@@ -1,18 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MockPgService } from './mock-pg.service';
 import { PaymentService } from '../payment/payment.service';
-import { OrdersService } from '../orders/orders.service';
+import { OrderService } from '../order/order.service';
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { SimulatePaymentDto } from './dto/simulate-payment.dto';
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod, OrderStatus } from '@prisma/client';
 
 const mockPaymentService = {
   processPaymentSuccess: jest.fn(),
 };
 
 const mockOrdersService = {
-  handlePaymentSuccess: jest.fn(),
+  updateOrderStatus: jest.fn(),
 };
 
 describe('MockPgService', () => {
@@ -25,7 +25,7 @@ describe('MockPgService', () => {
       providers: [
         MockPgService,
         { provide: PaymentService, useValue: mockPaymentService },
-        { provide: OrdersService, useValue: mockOrdersService },
+        { provide: OrderService, useValue: mockOrdersService },
       ],
     }).compile();
 
@@ -46,7 +46,6 @@ describe('MockPgService', () => {
         paymentId: 'pay-123',
         orderId: 'order-123',
         amount: 100000,
-        paymentMethod: PaymentMethod.VIRTUAL_ACCOUNT,
       };
 
       const result = await service.createTransaction(dto);
@@ -72,11 +71,11 @@ describe('MockPgService', () => {
 
       const dto: SimulatePaymentDto = {
         providerTrxId: validToken,
-        paymentMethod: PaymentMethod.QRIS,
+        paymentMethod: PaymentMethod.OVO,
       };
 
       paymentService.processPaymentSuccess.mockResolvedValue(undefined);
-      ordersService.handlePaymentSuccess.mockResolvedValue(undefined);
+      ordersService.updateOrderStatus.mockResolvedValue(undefined);
 
       const result = await service.simulatePayment(dto);
 
@@ -85,16 +84,16 @@ describe('MockPgService', () => {
       expect(paymentService.processPaymentSuccess).toHaveBeenCalledWith(
         'pay-123',
         validToken,
-        PaymentMethod.QRIS,
+        PaymentMethod.OVO,
       );
-      expect(ordersService.handlePaymentSuccess).toHaveBeenCalledWith('order-123');
+      expect(ordersService.updateOrderStatus).toHaveBeenCalledWith('order-123', OrderStatus.PAID);
     });
 
     it('should throw BadRequestException if token is invalid or missing IDs', async () => {
       const invalidToken = 'not-a-base64-json';
       const dto: SimulatePaymentDto = {
         providerTrxId: invalidToken,
-        paymentMethod: PaymentMethod.QRIS,
+        paymentMethod: PaymentMethod.OVO,
       };
 
       await expect(service.simulatePayment(dto)).rejects.toThrow(BadRequestException);
@@ -104,13 +103,13 @@ describe('MockPgService', () => {
       const missingIdsToken = Buffer.from(JSON.stringify(missingIdsPayload)).toString('base64');
       const dto2: SimulatePaymentDto = {
         providerTrxId: missingIdsToken,
-        paymentMethod: PaymentMethod.QRIS,
+        paymentMethod: PaymentMethod.OVO,
       };
 
       await expect(service.simulatePayment(dto2)).rejects.toThrow(BadRequestException);
 
       expect(paymentService.processPaymentSuccess).not.toHaveBeenCalled();
-      expect(ordersService.handlePaymentSuccess).not.toHaveBeenCalled();
+      expect(ordersService.updateOrderStatus).not.toHaveBeenCalled();
     });
 
     it('should throw InternalServerErrorException if an internal service fails', async () => {
@@ -118,7 +117,7 @@ describe('MockPgService', () => {
       const validToken = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
       const dto: SimulatePaymentDto = {
         providerTrxId: validToken,
-        paymentMethod: PaymentMethod.QRIS,
+        paymentMethod: PaymentMethod.OVO,
       };
 
       paymentService.processPaymentSuccess.mockRejectedValue(new Error('DB Error'));
