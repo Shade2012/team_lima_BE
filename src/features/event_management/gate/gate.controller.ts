@@ -5,7 +5,7 @@ import { UpdateGateDto } from './dto/update-gate.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiSuccessResponse } from 'src/decorators/api-success-response.decorator';
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
-import { GateResponseDto } from './response/gate.response';
+import { GateResponseDto, GateDetailResponseDto } from './response/gate.response';
 import { PayloadJWT } from 'src/decorators/payload_jwt.decorator';
 import { Payload } from 'src/utils/payload';
 import { UserRoleExt } from 'src/decorators/user_role_ext.decorator';
@@ -35,7 +35,7 @@ export class GateController {
   @Get('event/:eventId')
   @Public()
   @ApiOperation({ summary: 'Get all gates for an event' })
-  @ApiSuccessResponse(GateResponseDto)
+  @ApiSuccessResponse(GateResponseDto, 200, 'Request successful', true)
   @ApiFailureResponse(404, 'Event not found')
   findByEvent(@Param('eventId', ParseUUIDPipe) eventId: string) {
     return this.gateService.findByEvent(eventId);
@@ -44,7 +44,7 @@ export class GateController {
   @Get(':id')
   @Public()
   @ApiOperation({ summary: 'Get a gate by ID' })
-  @ApiSuccessResponse(GateResponseDto)
+  @ApiSuccessResponse(GateDetailResponseDto)
   @ApiFailureResponse(404, 'Gate not found')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.gateService.findOne(id);

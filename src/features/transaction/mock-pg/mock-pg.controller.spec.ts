@@ -38,7 +38,6 @@ describe('MockPgController', () => {
         paymentId: 'pay-123',
         orderId: 'order-123',
         amount: 100000,
-        paymentMethod: PaymentMethod.VIRTUAL_ACCOUNT,
       };
 
       const mockResponse = {
@@ -59,6 +58,7 @@ describe('MockPgController', () => {
     it('should call service.simulatePayment and return success response', async () => {
       const dto: SimulatePaymentDto = {
         providerTrxId: 'encoded-token-123',
+        paymentMethod: PaymentMethod.OVO,
       };
 
       const mockResponse = true;

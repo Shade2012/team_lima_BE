@@ -37,9 +37,20 @@ export class GateService {
     });
   }
 
-  async findOne(id: string): Promise<Gate> {
+  async findOne(id: string): Promise<Gate | any> {
     const gate = await this.prisma.gate.findUnique({
       where: { id },
+      include: {
+        operators: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            role: true,
+            createdAt: true,
+          }
+        }
+      }
     });
     if (!gate) {
       throw new NotFoundException(`Gate with id ${id} not found`);

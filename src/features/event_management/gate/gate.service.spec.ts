@@ -38,8 +38,8 @@ const mockEventService = {
 
 describe('GateService', () => {
   let service: GateService;
-  const payload = new Payload('org-uuid-001', 'org', Role.ORGANIZER);
-  const otherPayload = new Payload('other-uuid', 'other', Role.ORGANIZER);
+  const payload = new Payload('org-uuid-001', 'org', Role.ORGANIZER, 123, 456);
+  const otherPayload = new Payload('other-uuid', 'other', Role.ORGANIZER, 123, 456);
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -102,6 +102,17 @@ describe('GateService', () => {
       expect(result).toEqual(mockGate);
       expect(mockPrisma.gate.findUnique).toHaveBeenCalledWith({
         where: { id: 'gate-uuid-001' },
+        include: {
+          operators: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              role: true,
+              createdAt: true,
+            },
+          },
+        },
       });
     });
 
