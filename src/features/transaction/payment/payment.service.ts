@@ -25,6 +25,10 @@ export class PaymentService {
       throw new NotFoundException(`Payment with ID ${paymentId} not found`);
     }
 
+    if (payment.status === 'SUCCESS') {
+      return;
+    }
+
     await this.prisma.payment.update({
       where: { id: paymentId },
       data: {

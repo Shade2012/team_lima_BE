@@ -98,6 +98,25 @@ export class EventService {
       throw new BadRequestException('refundEndDate must be after salesStartTime');
     }
 
+    const criticalFields: (keyof UpdateEventDto)[] = ['salesEndTime', 'eventDate', 'refundEndDate', 'refundPercentage'];
+    const hasCriticalChange = criticalFields.some(field => dto[field] !== undefined);
+
+    if (hasCriticalChange) {
+      const paidOrderCount = await this.prisma.order.count({
+        where: {
+          eventId: id,
+          status: { in: ['PAID', 'PARTIAL_REFUND'] },
+        },
+      });
+
+      if (paidOrderCount > 0) {
+        throw new BadRequestException(
+          `Cannot modify critical event settings after tickets have been sold. ` +
+          `There are ${paidOrderCount} paid order(s) for this event.`
+        );
+      }
+    }
+
     return this.prisma.event.update({
       where: { id },
       data: {
