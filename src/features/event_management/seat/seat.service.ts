@@ -39,14 +39,14 @@ export class SeatService {
     }
 
     const prefix = dto.prefix ? `${dto.prefix}-` : '';
-    const columns = category.columns || 1; // Default to 1 to avoid division by zero
+    const columns = category.columns || 1; 
 
     const seatData = Array.from({ length: toCreate }, (_, i) => {
       const globalIndex = existingCount + i;
       const rowIndex = Math.floor(globalIndex / columns);
       const colIndex = (globalIndex % columns) + 1;
 
-      // Convert rowIndex to Alphabet (0 -> A, 25 -> Z, 26 -> AA)
+
       let rowStr = '';
       let temp = rowIndex;
       while (temp >= 0) {
