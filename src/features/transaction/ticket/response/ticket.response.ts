@@ -4,7 +4,7 @@ export class TicketEventInfoDto {
   @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000001' })
   id!: string;
 
-  @ApiProperty({ example: 'Konser Blackpink' })
+  @ApiProperty({ example: 'Konser Sheila on 7' })
   name!: string;
 
   @ApiProperty({ example: '2026-08-10T10:00:00.000Z' })

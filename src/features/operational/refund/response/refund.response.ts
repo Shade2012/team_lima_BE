@@ -62,14 +62,14 @@ export class RefundTicketInfoDto {
   order?: RefundOrderInfoDto;
 }
 
-export class RefundResponseDto {
+export class CreateRefundResponseDto {
   @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000010' })
   id!: string;
 
   @ApiProperty({ example: 'Acara bentrok dengan jadwal penting' })
   reason!: string;
 
-  @ApiProperty({ example: 700000, description: 'Nominal refund yang dikembalikan ke customer' })
+  @ApiProperty({ example: 700000, description: 'Estimasi uang yang akan dikembalikan' })
   amount!: number;
 
   @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000002' })
@@ -78,29 +78,116 @@ export class RefundResponseDto {
   @ApiProperty({ example: 'PENDING', enum: RefundStatus })
   status!: string;
 
-  @ApiProperty({ example: 'Alasan tidak memenuhi kriteria force majeure', required: false, nullable: true })
-  rejectReason?: string | null;
-
-  @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000099', required: false, nullable: true })
-  adminId?: string | null;
-
-  @ApiProperty({
-    example: 'REF-eyJmb3VuZElkIjoiMDE5MTQ2YTA...==',
-    description: 'Resi/Token transaksi pengembalian dari Payment Gateway',
-    required: false,
-    nullable: true,
-  })
-  providerRefundId?: string | null;
-
-  @ApiProperty({ example: '2026-08-16T10:30:00.000Z', required: false, nullable: true })
-  processedAt?: string | null;
-
   @ApiProperty({ example: '2026-08-16T10:00:00.000Z' })
   createdAt!: string;
 
   @ApiProperty({ example: '2026-08-16T10:00:00.000Z' })
   updatedAt!: string;
+}
 
-  @ApiProperty({ type: RefundTicketInfoDto, required: false })
-  ticket?: RefundTicketInfoDto;
+// Admin Approve Refund
+export class ApproveRefundResponseDto {
+  @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000010' })
+  id!: string;
+
+  @ApiProperty({ example: 'Acara bentrok dengan jadwal penting' })
+  reason!: string;
+
+  @ApiProperty({ example: 700000 })
+  amount!: number;
+
+  @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000002' })
+  ticketId!: string;
+
+  @ApiProperty({ example: 'APPROVED', enum: RefundStatus })
+  status!: string;
+
+  @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000099' })
+  adminId!: string;
+
+  @ApiProperty({
+    example: 'REF-eyJmb3VuZElkIjoiMDE5MTQ2YTA...==',
+    description: 'Resi/Token transfer dari Payment Gateway',
+  })
+  providerRefundId!: string;
+
+  @ApiProperty({ example: '2026-08-16T10:30:00.000Z' })
+  processedAt!: string;
+
+  @ApiProperty({ example: '2026-08-16T10:00:00.000Z' })
+  createdAt!: string;
+
+  @ApiProperty({ example: '2026-08-16T10:30:00.000Z' })
+  updatedAt!: string;
+}
+
+// 3. Admin Reject Refund
+export class RejectRefundResponseDto {
+  @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000010' })
+  id!: string;
+
+  @ApiProperty({ example: 'Acara bentrok dengan jadwal penting' })
+  reason!: string;
+
+  @ApiProperty({ example: 700000 })
+  amount!: number;
+
+  @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000002' })
+  ticketId!: string;
+
+  @ApiProperty({ example: 'REJECTED', enum: RefundStatus })
+  status!: string;
+
+  @ApiProperty({ example: 'Alasan tidak memenuhi kriteria force majeure' })
+  rejectReason!: string;
+
+  @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000099' })
+  adminId!: string;
+
+  @ApiProperty({ example: '2026-08-16T10:30:00.000Z' })
+  processedAt!: string;
+
+  @ApiProperty({ example: '2026-08-16T10:00:00.000Z' })
+  createdAt!: string;
+
+  @ApiProperty({ example: '2026-08-16T10:30:00.000Z' })
+  updatedAt!: string;
+}
+
+export class RefundResponseDto {
+  @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000010' })
+  id!: string;
+
+  @ApiProperty({ example: 'Acara bentrok dengan jadwal penting' })
+  reason!: string;
+
+  @ApiProperty({ example: 700000 })
+  amount!: number;
+
+  @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000002' })
+  ticketId!: string;
+
+  @ApiProperty({ example: 'APPROVED', enum: RefundStatus })
+  status!: string;
+
+  @ApiProperty({ example: null, nullable: true })
+  rejectReason?: string | null;
+
+  @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000099', nullable: true })
+  adminId?: string | null;
+
+  @ApiProperty({ example: 'REF-eyJmb3VuZElkIjoiMDE5MTQ2YTA...==', nullable: true })
+  providerRefundId?: string | null;
+
+  @ApiProperty({ example: '2026-08-16T10:30:00.000Z', nullable: true })
+  processedAt?: string | null;
+
+  @ApiProperty({ example: '2026-08-16T10:00:00.000Z' })
+  createdAt!: string;
+
+  @ApiProperty({ example: '2026-08-16T10:30:00.000Z' })
+  updatedAt!: string;
+
+  @ApiProperty({ type: RefundTicketInfoDto })
+  ticket!: RefundTicketInfoDto;
 }

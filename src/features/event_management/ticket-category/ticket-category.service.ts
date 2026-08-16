@@ -131,7 +131,6 @@ export class TicketCategoryService {
         `Cannot delete category because it has ${existingSeatsCount} seats generated. Please delete the seats first.`,
       );
     }
-    // Cek tiket aktif (AVAILABLE + SEATED) yang masih mengikat kuota
     const activeTicketCount = await this.prisma.ticket.count({
       where: {
         categoryId: id,

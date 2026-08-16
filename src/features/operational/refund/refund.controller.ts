@@ -5,7 +5,12 @@ import { RejectRefundDto } from './dto/reject-refund.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiSuccessResponse } from 'src/decorators/api-success-response.decorator';
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
-import { RefundResponseDto } from './response/refund.response';
+import {
+  RefundResponseDto,
+  CreateRefundResponseDto,
+  ApproveRefundResponseDto,
+  RejectRefundResponseDto,
+} from './response/refund.response';
 import { UserRoleExt } from 'src/decorators/user_role_ext.decorator';
 import { Role } from '@prisma/client';
 import { PayloadJWT } from 'src/decorators/payload_jwt.decorator';
@@ -20,7 +25,7 @@ export class RefundController {
   @ApiBearerAuth()
   @UserRoleExt(Role.CUSTOMER)
   @ApiOperation({ summary: 'Request a ticket refund (Customer only)' })
-  @ApiSuccessResponse(RefundResponseDto, 201)
+  @ApiSuccessResponse(CreateRefundResponseDto, 201)
   @ApiFailureResponse(400, 'Invalid request / Ticket not available')
   @ApiFailureResponse(404, 'Ticket not found')
   requestRefund(
@@ -52,7 +57,7 @@ export class RefundController {
   @ApiBearerAuth()
   @UserRoleExt(Role.ADMIN)
   @ApiOperation({ summary: 'Approve a refund request (Admin only)' })
-  @ApiSuccessResponse(RefundResponseDto)
+  @ApiSuccessResponse(ApproveRefundResponseDto)
   @ApiFailureResponse(400, 'Refund is not pending / Ticket used')
   @ApiFailureResponse(404, 'Refund not found')
   approveRefund(
@@ -66,7 +71,7 @@ export class RefundController {
   @ApiBearerAuth()
   @UserRoleExt(Role.ADMIN)
   @ApiOperation({ summary: 'Reject a refund request (Admin only)' })
-  @ApiSuccessResponse(RefundResponseDto)
+  @ApiSuccessResponse(RejectRefundResponseDto)
   @ApiFailureResponse(400, 'Refund is not pending')
   @ApiFailureResponse(404, 'Refund not found')
   rejectRefund(
