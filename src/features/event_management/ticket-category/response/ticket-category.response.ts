@@ -13,8 +13,23 @@ export class TicketCategoryResponseDto {
   @ApiProperty({ example: 500000 })
   price!: number;
 
-  @ApiProperty({ example: 100 })
+  @ApiProperty({ example: 90 })
   totalQuota!: number;
+
+  @ApiProperty({ example: 1 })
+  posIndex!: number;
+
+  @ApiProperty({ example: 10, required: false, nullable: true })
+  rows!: number | null;
+
+  @ApiProperty({ example: 10, required: false, nullable: true })
+  columns!: number | null;
+
+  @ApiProperty({ example: 90 })
+  availableQuota!: number;
+
+  @ApiProperty({ example: true })
+  isAvailable!: boolean;
 
   @ApiProperty({ example: '2026-08-10T10:00:00.000Z' })
   createdAt!: string;

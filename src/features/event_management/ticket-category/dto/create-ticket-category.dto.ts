@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsString, IsUUID, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 export class CreateTicketCategoryDto {
   @ApiProperty({
@@ -29,12 +29,44 @@ export class CreateTicketCategoryDto {
   price!: number;
 
   @ApiProperty({
-    description: 'Total ticket quota for this category',
-    example: 100,
+    description: 'Total ticket quota for this category (required for non-seated events)',
+    example: 90,
     minimum: 1,
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsInt()
   @Min(1)
-  totalQuota!: number;
+  totalQuota?: number;
+
+  @ApiProperty({
+    description: 'Position index for ordering in UI (stage layout order)',
+    example: 1,
+    required: false,
+    default: 0,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  posIndex?: number;
+
+  @ApiProperty({
+    description: 'Number of rows (for seated events)',
+    example: 10,
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  rows?: number;
+
+  @ApiProperty({
+    description: 'Number of columns (for seated events)',
+    example: 9,
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  columns?: number;
 }

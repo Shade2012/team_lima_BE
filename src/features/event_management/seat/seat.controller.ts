@@ -34,7 +34,7 @@ export class SeatController {
   @Get('category/:categoryId')
   @Public()
   @ApiOperation({ summary: 'Get all seats for a ticket category' })
-  @ApiSuccessResponse(SeatResponseDto)
+  @ApiSuccessResponse(SeatResponseDto, 200, 'Request successful', true)
   @ApiFailureResponse(404, 'Category not found')
   findByCategory(@Param('categoryId', ParseUUIDPipe) categoryId: string) {
     return this.seatService.findByCategory(categoryId);

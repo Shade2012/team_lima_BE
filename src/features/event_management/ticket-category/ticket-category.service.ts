@@ -21,12 +21,28 @@ export class TicketCategoryService {
       throw new ForbiddenException('You do not have permission to add categories to this event');
     }
 
+    let totalQuota = dto.totalQuota;
+    
+    if (event.isSeated) {
+      if (!dto.rows || !dto.columns) {
+        throw new BadRequestException('Seated events must provide rows and columns for category');
+      }
+      totalQuota = dto.rows * dto.columns;
+    } else {
+      if (!totalQuota) {
+        throw new BadRequestException('Non-seated events must provide totalQuota for category');
+      }
+    }
+
     return this.prisma.ticketCategory.create({
       data: {
         eventId: dto.eventId,
         name: dto.name,
         price: dto.price,
-        totalQuota: dto.totalQuota,
+        totalQuota: totalQuota,
+        posIndex: dto.posIndex || 0,
+        rows: event.isSeated ? dto.rows : null,
+        columns: event.isSeated ? dto.columns : null,
       },
     });
   }
@@ -34,10 +50,36 @@ export class TicketCategoryService {
   async findByEvent(eventId: string): Promise<TicketCategory[]> {
     await this.eventService.findOne(eventId);
 
-    return this.prisma.ticketCategory.findMany({
+    const categories = await this.prisma.ticketCategory.findMany({
       where: { eventId },
-      orderBy: { price: 'desc' },
+      orderBy: [{ posIndex: 'asc' }, { price: 'desc' }],
     });
+
+    const now = new Date();
+    
+    return Promise.all(categories.map(async (category) => {
+      const occupiedCount = await this.prisma.ticket.count({
+        where: {
+          categoryId: category.id,
+          status: { notIn: ['CANCELLED', 'EXPIRED', 'REFUND'] },
+          order: {
+            OR: [
+              { status: 'PAID' },
+              {
+                status: { in: ['HELD', 'PAYMENT_PENDING'] },
+                expiresAt: { gt: now },
+              },
+            ],
+          },
+        },
+      });
+      const availableQuota = Math.max(0, category.totalQuota - occupiedCount);
+      return {
+        ...category,
+        availableQuota,
+        isAvailable: availableQuota > 0,
+      };
+    }));
   }
 
   async findByIds(ids: string[], eventId:string, statuses?: TicketStatus[]): Promise<TicketCategoryWithCount[]> {
@@ -72,7 +114,31 @@ export class TicketCategoryService {
     if (!category) {
       throw new NotFoundException(`Ticket category with id ${id} not found`);
     }
-    return category;
+
+    const now = new Date();
+    const occupiedCount = await this.prisma.ticket.count({
+      where: {
+        categoryId: category.id,
+        status: { notIn: ['CANCELLED', 'EXPIRED', 'REFUND'] },
+        order: {
+          OR: [
+            { status: 'PAID' },
+            {
+              status: { in: ['HELD', 'PAYMENT_PENDING'] },
+              expiresAt: { gt: now },
+            },
+          ],
+        },
+      },
+    });
+
+    const availableQuota = Math.max(0, category.totalQuota - occupiedCount);
+
+    return {
+      ...category,
+      availableQuota,
+      isAvailable: availableQuota > 0,
+    } as any;
   }
 
   async update(id: string, dto: UpdateTicketCategoryDto, payload: Payload): Promise<TicketCategory> {
