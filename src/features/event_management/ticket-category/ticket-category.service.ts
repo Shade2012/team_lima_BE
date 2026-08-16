@@ -94,7 +94,18 @@ export class TicketCategoryService {
           );
         }
       }
-      // TODO: Future checki tickets sold
+      const activeTicketCount = await this.prisma.ticket.count({
+        where: {
+          categoryId: id,
+          status: { notIn: ['CANCELLED', 'EXPIRED', 'REFUND'] },
+        },
+      });
+
+      if (dto.totalQuota < activeTicketCount) {
+        throw new BadRequestException(
+          `Cannot reduce totalQuota to ${dto.totalQuota}. There are ${activeTicketCount} active ticket(s) in this category.`,
+        );
+      }
     }
 
     return this.prisma.ticketCategory.update({
@@ -120,9 +131,18 @@ export class TicketCategoryService {
         `Cannot delete category because it has ${existingSeatsCount} seats generated. Please delete the seats first.`,
       );
     }
-    
-      // TODO: Future checki tickets sold
+    const activeTicketCount = await this.prisma.ticket.count({
+      where: {
+        categoryId: id,
+        status: { notIn: ['CANCELLED', 'EXPIRED', 'REFUND'] },
+      },
+    });
 
+    if (activeTicketCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete category because it has ${activeTicketCount} active ticket(s). Refund or cancel them first.`,
+      );
+    }
     return this.prisma.ticketCategory.delete({
       where: { id },
     });

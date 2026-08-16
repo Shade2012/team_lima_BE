@@ -5,7 +5,7 @@ import { UpdateGateDto } from './dto/update-gate.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiSuccessResponse, PrimitiveType } from 'src/decorators/api-success-response.decorator';
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
-import { GateResponseDto, GateDetailResponseDto } from './response/gate.response';
+import { GateResponseDto, GateDetailResponseDto, AssignedGateResponseDto } from './response/gate.response';
 import { PayloadJWT } from 'src/decorators/payload_jwt.decorator';
 import { Payload } from 'src/utils/payload';
 import { UserRoleExt } from 'src/decorators/user_role_ext.decorator';
@@ -40,6 +40,16 @@ export class GateController {
   @ApiFailureResponse(404, 'Event not found')
   findByEvent(@Param('eventId', ParseUUIDPipe) eventId: string) {
     return this.gateService.findByEvent(eventId);
+  }
+
+  @ApiBearerAuth()
+  @UserRoleExt(Role.GATE_OPERATOR)
+  @ApiOperation({ summary: 'Get assigned gate and event details for the logged-in operator' })
+  @ApiSuccessResponse(AssignedGateResponseDto, 200, 'Assigned Gate Retrieved')
+  @ApiFailureResponse(404, 'Operator is not assigned to any gate')
+  @Get('operator/assigned')
+  async getAssignedGate(@PayloadJWT() payload: Payload) {
+    return await this.gateService.findAssignedGate(payload.sub);
   }
 
   @Get(':id')

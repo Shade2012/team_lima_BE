@@ -33,6 +33,9 @@ const mockPrisma = {
   seat: {
     count: jest.fn().mockResolvedValue(0),
   },
+  ticket: {
+    count: jest.fn().mockResolvedValue(0),
+  },
 };
 
 const mockEventService = {

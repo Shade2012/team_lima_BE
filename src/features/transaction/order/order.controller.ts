@@ -4,7 +4,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PayloadJWT } from 'src/decorators/payload_jwt.decorator';
 import { Payload } from 'src/utils/payload';
-import { ApiBearerAuth, ApiExcludeEndpoint, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRoleExt } from 'src/decorators/user_role_ext.decorator';
 import { Role } from '@prisma/client';
 import { ApiSuccessResponse, PrimitiveType } from 'src/decorators/api-success-response.decorator';
@@ -12,6 +12,7 @@ import { OrderResponseDto } from './response/order-response.dto';
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
 import { CreateOrderResponseDto } from './response/create-order-response.dto';
 
+@ApiTags('Orders')
 @Controller('orders')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}

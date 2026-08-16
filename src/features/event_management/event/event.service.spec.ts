@@ -98,6 +98,13 @@ describe('EventService', () => {
       expect(result).toEqual(mockEvent);
       expect(prisma.event.findUnique).toHaveBeenCalledWith({
         where: { id: mockEvent.id },
+        include: {
+          categories: {
+            include: {
+              tickets: true,
+            },
+          },
+        },
       });
     });
 

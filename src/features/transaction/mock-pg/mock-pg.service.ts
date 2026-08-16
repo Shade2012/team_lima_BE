@@ -2,10 +2,8 @@ import { Injectable, InternalServerErrorException, BadRequestException, forwardR
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { SimulatePaymentDto } from './dto/simulate-payment.dto';
 import { MockTransactionResponseDto } from './response/mock-transaction.response';
-
 import { PaymentService } from '../payment/payment.service'; 
 import { OrderService } from '../order/order.service';
-import { Order, OrderStatus } from '@prisma/client';
 import { RedisService } from 'src/redis/type/commands';
 import { log } from 'console';
 
@@ -52,13 +50,14 @@ export class MockPgService {
     }
 
     try {
+      const order = await this.orderService.validateOrderPaid(orderId)
       await this.paymentService.processPaymentSuccess(
         paymentId,
         dto.providerTrxId,
         dto.paymentMethod,
       );
 
-      await this.orderService.paidOrder(orderId);
+      await this.orderService.paidOrder(order);
 
       return true;
     } catch (error) {
@@ -66,8 +65,19 @@ export class MockPgService {
     }
   }
 
-  private async validateOrder(order:Order){
-    
+  async processRefund(dto: { refundId: string; ticketId: string; amount: number }) {
+    const tokenPayload = {
+      refundId: dto.refundId,
+      ticketId: dto.ticketId,
+      timestamp: Date.now(),
+    };
+    const refundToken = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
+
+    return {
+      success: true,
+      providerRefundId: `REF-${refundToken}`,
+      amount: dto.amount,
+    };
   }
-}
+}  
 

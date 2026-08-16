@@ -6,11 +6,12 @@ import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/type/commands';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { Order, OrderStatus, Prisma } from '@prisma/client';
 import { EventService } from 'src/features/event_management/event/event.service';
 import { PaymentService } from '../payment/payment.service';
 import { TicketService } from '../ticket/ticket.service';
 import { createReservationFingerprint, createReservationFingerprintData } from 'src/utils/order_fingerprint_helper';
+import { OrderWithTickets } from './constant/order-with-ticket';
 
 @Injectable()
 export class OrderService {
@@ -167,7 +168,7 @@ export class OrderService {
     await this.redis.flushall('ASYNC');
   }
 
-  async paidOrder(orderId: string): Promise<void> {
+  async validateOrderPaid(orderId: string){
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -184,14 +185,17 @@ export class OrderService {
     if (order.status !== OrderStatus.PAYMENT_PENDING) {
       throw new BadRequestException('Order cannot be paid');
     }
+    return order
+  }
 
+  async paidOrder(order: OrderWithTickets): Promise<void> {
     const categoryCounts = this.countByCategory(order.tickets, (ticket) => ticket.categoryId);
     const categoryIds = [...categoryCounts.keys()];
     const redisKeys = this.buildFullReservationKeys(order.reservationKey!, categoryIds);
 
     await this.prisma.$transaction(async (tx) => {
       const updatedOrder = await tx.order.updateMany({
-        where: { id: orderId, status: OrderStatus.PAYMENT_PENDING },
+        where: { id: order.id, status: OrderStatus.PAYMENT_PENDING },
         data: { status: OrderStatus.PAID },
       });
 

@@ -94,4 +94,23 @@ export class GateService {
       where: { id },
     });
   }
+
+  async findAssignedGate(operatorId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: operatorId },
+      include: {
+        gate: {
+          include: {
+            event: true,
+          },
+        },
+      },
+    });
+
+    if (!user || !user.gate) {
+      throw new NotFoundException('Anda belum ditugaskan ke Gate manapun');
+    }
+
+    return user.gate;
+  }
 }

@@ -1,9 +1,6 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { CreateTicketDto } from './dto/create-ticket.dto';
-import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Gate, OrderStatus, Prisma, Role, TicketStatus } from '@prisma/client';
-import { Payload } from 'src/utils/payload';
 import { GateService } from 'src/features/event_management/gate/gate.service';
 
 @Injectable()
@@ -93,27 +90,6 @@ export class TicketService {
     return tickets;
   }
 
-  async findAll(payload: Payload) {
-    const { where, include } = this.getTicketAccess(payload);
-
-    return this.prisma.ticket.findMany({
-      where,
-      include,
-    });
-  }
-
-  async findOne(id: string, payload: Payload) {
-    const { where, include } = this.getTicketAccess(payload);
-
-    return this.prisma.ticket.findFirst({
-      where: {
-        id,
-        ...where,
-      },
-      include,
-    });
-  }
-
   async validateTicketScans(id: string){
     const ticket = await this.prisma.ticket.findUnique({
       where:{
@@ -171,35 +147,62 @@ export class TicketService {
   //   return `This action removes a #${id} ticket`;
   // }
 
-
-  private getTicketAccess(payload: Payload): 
-  {
-    where?: Prisma.TicketWhereInput;
-    include?: Prisma.TicketInclude;
-  } {
-    const { role, sub: userId } = payload;
-    switch (role) {
-      case Role.ADMIN:
-        return {
+  async findMyTickets(customerId: string) {
+    return this.prisma.ticket.findMany({
+      where: {
+        order: {
+          customerId,
+          status: { in: ['PAID', 'PARTIAL_REFUND'] },
+        },
+        status: 'AVAILABLE',
+      },
+      include: {
+        category: {
           include: {
-            logs: true,
-          },
-        };
-
-      case Role.CUSTOMER:
-        return {
-          where: {
-            order: {
-              customerId: userId,
+            event: {
+              select: {
+                id: true,
+                name: true,
+                eventDate: true,
+                isSeated: true,
+              },
             },
           },
-        };
-
-      default:
-        throw new ForbiddenException(
-          'You are not allowed to access tickets',
-        );
-      }
-      
-    }
+        },
+        seat: true,
+        order: { select: { id: true, status: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
+
+  async findOneTicket(ticketId: string, customerId: string) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        category: {
+          include: {
+            event: {
+              select: {
+                id: true,
+                name: true,
+                eventDate: true,
+                isSeated: true,
+              },
+            },
+          },
+        },
+        seat: true,
+        order: { select: { id: true, customerId: true, status: true } },
+        scan: true,
+        refund: true,
+      },
+    });
+
+    if (!ticket || ticket.order.customerId !== customerId) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    return ticket;
+  }
+}

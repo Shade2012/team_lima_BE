@@ -38,3 +38,14 @@ export class GateDetailResponseDto extends GateResponseDto {
   @ApiProperty({ type: [GateOperatorResponseDto] })
   operators!: GateOperatorResponseDto[];
 }
+
+export class AssignedGateResponseDto extends GateResponseDto {
+  @ApiProperty({ 
+    example: {
+      id: '019146a0-0000-7abc-0000-abcdef000001',
+      name: 'Konser Sheila on 7',
+      eventDate: '2026-08-10T10:00:00.000Z'
+    }
+  })
+  event!: any;
+}
