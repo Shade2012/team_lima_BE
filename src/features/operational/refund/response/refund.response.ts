@@ -5,7 +5,7 @@ export class RefundEventInfoDto {
   @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000001' })
   id!: string;
 
-  @ApiProperty({ example: 'Konser Blackpink Born Pink World Tour' })
+  @ApiProperty({ example: 'Konser Sheila on 7' })
   name!: string;
 
   @ApiProperty({ example: '2026-08-10T19:00:00.000Z' })
@@ -121,7 +121,7 @@ export class ApproveRefundResponseDto {
   updatedAt!: string;
 }
 
-// 3. Admin Reject Refund
+// Admin Reject Refund
 export class RejectRefundResponseDto {
   @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000010' })
   id!: string;

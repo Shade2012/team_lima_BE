@@ -195,7 +195,7 @@ export class RefundService {
         data: { status: newOrderStatus },
       });
 
-      await this.redis.decrby(`category:${refund.ticket.categoryId}:held`, 1);
+      await this.redis.decrby(`category:${refund.ticket.categoryId}:sold`, 1);
 
       return updatedRefund;
     });
