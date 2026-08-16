@@ -1,5 +1,6 @@
 -- KEYS[1] = Order Idempotency Key ("order:customer:<customerId>:event:<eventId>")
 -- KEYS[2...] = Category Held Keys ("category:<categoryId>:held")
+-- KEYS[N+1..2N] = Category Sold Keys
 -- pusing gua 
 -- ARGV[1] = order_id
 -- ARGV[2] = customer_id
@@ -42,14 +43,22 @@ if not categories or #categories == 0 then
     return {0, "INVALID_CATEGORIES"}
 end
 
+local category_count = #categories
+
 for i, item in ipairs(categories) do
-    local qty       = tonumber(item.qty)
+    local qty = tonumber(item.qty)
     local max_quota = tonumber(item.quota)
-    local key_index = i + 1
 
-    local current_held = tonumber(redis.call("GET", KEYS[key_index]) or "0")
+    local held_key_index = i + 1
+    local sold_key_index = #categories + i + 1
 
-    if (current_held + qty) > max_quota then
+    local current_held =
+        tonumber(redis.call("GET", KEYS[held_key_index]) or "0")
+
+    local current_sold =
+        tonumber(redis.call("GET", KEYS[sold_key_index]) or "0")
+
+    if (current_held + current_sold + qty) > max_quota then
         return {0, "QUOTA_EXCEEDED", item.id}
     end
 end
@@ -57,12 +66,12 @@ end
 -- 4. Increment Category Quotas
 for i, item in ipairs(categories) do
     local qty       = tonumber(item.qty)
-    local key_index = i + 1
-    redis.call("INCRBY", KEYS[key_index], qty)
+    local held_key_index = i + 1
+    redis.call("INCRBY", KEYS[held_key_index], qty)
 
-    local current_key_ttl = redis.call("TTL", KEYS[key_index])
+    local current_key_ttl = redis.call("TTL", KEYS[held_key_index])
     if current_key_ttl < remaining_sales then
-        redis.call("EXPIRE", KEYS[key_index], remaining_sales)
+        redis.call("EXPIRE", KEYS[held_key_index], remaining_sales)
     end
 end
 
@@ -72,7 +81,8 @@ redis.call(
     order_key,
     "order_id", order_id,
     "customer_id", customer_id,
-    "categories", categories_json
+    "categories", categories_json,
+    "status","HELD"
 )
 redis.call("EXPIRE", order_key, ttl)
 

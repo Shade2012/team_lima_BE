@@ -11,6 +11,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { MockPgModule } from '../mock-pg/mock-pg.module';
 import { PaymentModule } from '../payment/payment.module';
 import { PaymentService } from '../payment/payment.service';
+import { TicketModule } from '../ticket/ticket.module';
 
 @Module({
   controllers: [OrderController],
@@ -22,6 +23,7 @@ import { PaymentService } from '../payment/payment.service';
   imports:[
     EventModule, 
     TicketCategoryModule, 
+    TicketModule,
     SeatModule,
     RedisIoModule,
     BullModule.registerQueue({

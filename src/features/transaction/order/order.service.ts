@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, forwardRef, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, forwardRef, Inject, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Payload } from 'src/utils/payload';
 import { v7 as uuidv7 } from 'uuid';
@@ -8,61 +8,83 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/type/commands';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { EventService } from 'src/features/event_management/event/event.service';
-import { MockPgService } from '../mock-pg/mock-pg.service';
 import { PaymentService } from '../payment/payment.service';
+import { TicketService } from '../ticket/ticket.service';
+import { createReservationFingerprint, createReservationFingerprintData } from 'src/utils/order_fingerprint_helper';
 
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger(OrderService.name);
+  private static readonly RESERVATION_HOLD_SECONDS = 900;
 
   constructor(
     @InjectQueue('order-expired') private readonly expiryQueue: Queue,
-    private readonly redis:RedisService,
+    private readonly redis: RedisService,
     private readonly prisma: PrismaService,
     private readonly eventService: EventService,
+    private readonly ticketService: TicketService,
     @Inject(forwardRef(() => PaymentService))
     private readonly paymentService: PaymentService,
   ) {}
 
-  async create(eventId: string, dto: CreateOrderDto, payload: Payload, idempotencyKey?: string) {
+  async findOne(id: string, customerId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { customer: true },
+    });
+    if (!order || order.customer?.id !== customerId) {
+      throw new NotFoundException('Order not found');
+    }
+    return order;
+  }
 
+  async findAll(payload: Payload) {
+    return this.prisma.order.findMany({
+      where: { customerId: payload.sub },
+      include: { tickets: { include: { category: true } } },
+    });
+  }
+
+  async create(eventId: string, dto: CreateOrderDto, payload: Payload, reservationKey?: string) {
     const customerId = payload.sub;
-    const { categoryCounts, totalAmount, luaPayload, salesEndTimeSec, uniqueCategoryIds } = await this.prepareOrderMetadata(eventId, dto.seats);
+    const { categoryCounts, totalAmount, luaPayload, salesEndTimeSec, uniqueCategoryIds } =
+    await this.prepareOrderMetadata(eventId, dto.seats);
+
+    await this.ensureCategoryInventory(eventId, uniqueCategoryIds);
+
+    const fingerprint = createReservationFingerprint(
+      createReservationFingerprintData(customerId, eventId, dto.seats),
+    );
 
     const newOrderId = uuidv7();
-    const orderKey = idempotencyKey 
-      ? `order:idempotent:${idempotencyKey}`
-      : `order:customer:${customerId}:event:${eventId}`;
+    const orderKey = reservationKey
+      ? `order:idempotent:${reservationKey}`
+      : `order:customer:${customerId}:event:${eventId}:${fingerprint}`;
 
-    const categoryKeys = uniqueCategoryIds.map((catId) => `category:${catId}:held`);
-    const allKeys = [orderKey, ...categoryKeys];
+    const rollbackKeys = this.buildHeldReservationKeys(orderKey, uniqueCategoryIds);
 
     let isReservedInRedis = false;
-    
+
     try {
-       // 1. Reserve seats via Lua
       const { statusCode, resultVal, extraInfo } = await this.reserveSeatsInRedis(
         orderKey,
         newOrderId,
         customerId,
         luaPayload,
         uniqueCategoryIds,
-        salesEndTimeSec
+        salesEndTimeSec,
       );
 
-      // 2. Handle Reused/Existing Session
       if (statusCode === 2) {
         return this.handleExistingSession(resultVal);
       }
 
-      // 3. Handle Errors
       if (statusCode === 0) {
-        this.handleOrderError(resultVal, extraInfo ?? "Error");
+        this.handleOrderError(resultVal, extraInfo ?? 'Error');
       }
 
       isReservedInRedis = true;
 
-      // 4. Create New DB Order
       const ttlSeconds = Number(resultVal);
       const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
 
@@ -74,6 +96,7 @@ export class OrderService {
           totalAmount,
           status: 'HELD',
           expiresAt,
+          reservationKey: orderKey,
           tickets: {
             createMany: {
               data: dto.seats.map((seat) => ({
@@ -86,41 +109,15 @@ export class OrderService {
         },
       });
 
-    // 5. Schedule Expiry Queue
-      await this.expiryQueue.add(
-        'order-expired',
-        { orderId: order.id, eventId, categoryCounts },
-        { delay: ttlSeconds * 1000, jobId: `expire-${order.id}` },
-      );
+      await this.scheduleExpiry(order.id, eventId, ttlSeconds, categoryCounts);
 
-
-      return await this.paymentService.createCheckoutSession(order.id, payload.sub)
+      return await this.paymentService.createCheckoutSession(order.id, payload.sub);
     } catch (exception) {
       if (isReservedInRedis) {
-        await this.rollbackReservation(allKeys,  luaPayload);
+        await this.rollbackReservation(rollbackKeys, luaPayload);
       }
-      throw exception
+      throw exception;
     }
-  }
-
-  async findAll(payload:Payload) {
-    const orders = this.prisma.order.findMany({
-      where:{
-        customerId:payload.sub
-      },
-      include:{
-        tickets:{
-          include:{
-            category:true
-          }
-        }
-      }
-    });
-
-    if(!orders){
-      throw new NotFoundException("Orders not found")
-    }
-    return orders
   }
 
   async markAsPaymentPending(orderId: string, customerId: string) {
@@ -135,16 +132,15 @@ export class OrderService {
     if (order.status !== 'HELD') {
       throw new BadRequestException(`Order cannot move to payment from ${order.status} state`);
     }
-    
-    const orderKey = `order:customer:${customerId}:event:${order.eventId}`;
+
+    const orderKey = order.reservationKey!;
     const endSalesTimestamp = Math.floor(new Date(order.event.salesEndTime).getTime() / 1000);
-    const paymentHoldSeconds = 900; 
 
     const [status, resultVal] = await this.redis.extendsPaymentPending(
       1,
       orderKey,
       String(endSalesTimestamp),
-      String(paymentHoldSeconds),
+      String(OrderService.RESERVATION_HOLD_SECONDS),
     );
 
     if (status === 0) {
@@ -162,15 +158,7 @@ export class OrderService {
       },
     });
 
-    await this.expiryQueue.remove(`expire-${orderId}`);
-    await this.expiryQueue.add(
-      'order-expired',
-      { orderId, eventId: order.eventId },
-      {
-        delay: newTtlSeconds * 1000,
-        jobId: `expire-${orderId}`,
-      },
-    );
+    await this.rescheduleExpiry(orderId, order.eventId, newTtlSeconds);
 
     return updatedOrder;
   }
@@ -179,33 +167,44 @@ export class OrderService {
     await this.redis.flushall('ASYNC');
   }
 
-  async findOne(id: string, customerId: string) {
+  async paidOrder(orderId: string): Promise<void> {
     const order = await this.prisma.order.findUnique({
-      where:{
-        id
+      where: { id: orderId },
+      include: {
+        tickets: {
+          select: { id: true, categoryId: true },
+        },
       },
-      include:{
-        customer:true
-      }
-    })
-    if(!order || order.customer?.id !== customerId){
-      throw new NotFoundException('Order not found')
-    }
-    return order
-  }
+    });
 
-  async updateOrderStatus(orderId:string, status: OrderStatus){
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: status,
-      },
+    if (order.status !== OrderStatus.PAYMENT_PENDING) {
+      throw new BadRequestException('Order cannot be paid');
+    }
+
+    const categoryCounts = this.countByCategory(order.tickets, (ticket) => ticket.categoryId);
+    const categoryIds = [...categoryCounts.keys()];
+    const redisKeys = this.buildFullReservationKeys(order.reservationKey!, categoryIds);
+
+    await this.prisma.$transaction(async (tx) => {
+      const updatedOrder = await tx.order.updateMany({
+        where: { id: orderId, status: OrderStatus.PAYMENT_PENDING },
+        data: { status: OrderStatus.PAID },
+      });
+
+      if (updatedOrder.count === 0) {
+        throw new BadRequestException('Order is no longer payment pending');
+      }
     });
+
+    const [status, result] = await this.redis.soldSeat(redisKeys.length, ...redisKeys);
+
+    if (Number(status) !== 1) {
+      throw new InternalServerErrorException(`Failed to finalize Redis reservation: ${result}`);
+    }
   }
 
   async rollbackReservation(keys: string[], categoriesJson: string) {
@@ -216,114 +215,90 @@ export class OrderService {
     }
   }
 
-async cancelExpiredOrder(orderId: string, categoryCounts?: Record<string, number>): Promise<boolean> {
-  const order = await this.prisma.order.findUnique({
-    where: { id: orderId },
-    include: { 
-      event: { select: { id: true, salesEndTime: true } },
-      tickets: true,
-    },
-  });
-
-  if (!order || !['HELD', 'PAYMENT_PENDING'].includes(order.status)) {
-    return false; 
-  }
-
-  const isSalesEnded = new Date() >= order.event.salesEndTime;
-  const orderStatus = 'CANCELLED';
-  const ticketStatus = isSalesEnded ? 'EXPIRED' : 'CANCELLED';
-
-  const [updatedOrder] = await this.prisma.$transaction([
-    this.prisma.order.updateMany({
-      where: {
-        id: order.id,
-        status: { in: ['HELD', 'PAYMENT_PENDING'] },
+  async cancelExpiredOrder(orderId: string, categoryCounts?: Record<string, number>): Promise<boolean> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        event: { select: { id: true, salesEndTime: true } },
+        tickets: true,
       },
-      data: { status: orderStatus },
-    }),
+    });
 
-    this.prisma.ticket.updateMany({
-      where: { orderId: order.id },
-        data: { status: ticketStatus },
-      }),
-    ]);
+    if (!order || !this.isCancellableOrder(order.status)) {
+      return false;
+    }
 
-    if (updatedOrder.count > 0) {
-      const orderKey = `order:customer:${order.customerId}:event:${order.eventId}`;
+    const isSalesEnded = new Date() >= order.event.salesEndTime;
+    const ticketStatus = isSalesEnded ? 'EXPIRED' : 'CANCELLED';
 
-      if (!isSalesEnded) {
-        const hasCounts = categoryCounts && Object.keys(categoryCounts).length > 0;
-        const counts = hasCounts 
-          ? categoryCounts 
-          : this.buildCategoryCountsFromTickets(order.tickets);
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.order.updateMany({
+        where: { id: order.id, status: { in: ['HELD', 'PAYMENT_PENDING'] } },
+        data: { status: 'CANCELLED' },
+      });
 
-        const uniqueCatIds = Object.keys(counts);
-        const categoryKeys = uniqueCatIds.map((catId) => `category:${catId}:held`);
-        const allKeys = [orderKey, ...categoryKeys];
+      await this.ticketService.updateStatuses(
+        tx,
+        ticketStatus,
+        order.tickets.map((ticket) => ticket.id),
+      );
 
-        const luaPayload = JSON.stringify(
-          uniqueCatIds.map((id) => ({ id, qty: counts[id] }))
-        );
-        try {
-          await this.redis.removeSeats(allKeys.length, ...allKeys, luaPayload);
-        } catch (redisErr) {
-          const pipeline = this.redis.pipeline();
-          for (const [catId, qty] of Object.entries(counts)) {
-            pipeline.decrby(`category:${catId}:held`, qty);
-          }
-          pipeline.del(orderKey);
-          await pipeline.exec();
-        }
-      } else {
-        await this.redis.del(orderKey);
-      }
+      return result;
+    });
+
+    if (updatedOrder.count === 0) {
+      return false;
+    }
+
+    const orderKey = order.reservationKey!;
+
+    if (isSalesEnded) {
+      await this.redis.del(orderKey);
       return true;
     }
-    return false;
+
+    const counts = categoryCounts && Object.keys(categoryCounts).length > 0
+      ? new Map(Object.entries(categoryCounts))
+      : this.countByCategory(order.tickets, (ticket) => ticket.categoryId);
+
+    const allKeys = this.buildHeldReservationKeys(orderKey, [...counts.keys()]);
+    const luaPayload = this.buildLuaPayload(counts);
+
+    try {
+      await this.redis.removeSeats(allKeys.length, ...allKeys, luaPayload);
+    } catch (redisErr) {
+      await this.fallbackRemoveHeldSeats(orderKey, counts);
+    }
+
+    return true;
   }
 
-  private async prepareOrderMetadata(eventId: string, seats: Array<{ categoryId: string; seatId: string }>) {
+  private async prepareOrderMetadata(eventId: string, seats: Array<{ categoryId: string; seatId?: string }>) {
     const event = await this.eventService.findOne(eventId);
     if (!event) {
       throw new NotFoundException(`Event ${eventId} not found`);
     }
+
     const salesEndTimeSec = Math.floor(new Date(event.salesEndTime).getTime() / 1000);
+    const categoryCounts = this.countByCategory(seats, (seat) => seat.categoryId);
+    const uniqueCategoryIds = [...categoryCounts.keys()];
 
-    const categoryCounts = new Map<string, number>();
-    for (const seat of seats) {
-      categoryCounts.set(
-        seat.categoryId,
-        (categoryCounts.get(seat.categoryId) || 0) + 1,
-      );
-    }
-
-    const uniqueCategoryIds = Array.from(categoryCounts.keys());
-    let totalAmount = 0;
-
-    const luaPayloadArray = uniqueCategoryIds.map((catId) => {
-    const category = event.categories.find((cat) => cat.id === catId);
-      
-    if (!category) {
-      throw new BadRequestException(`Category ${catId} does not exist for this event`);
-    }
-
-    const qty = categoryCounts.get(catId)!;
-    totalAmount += Number(category.price) * qty;
-
-    return {
-      id: catId,
-      qty,
-      quota: category.totalQuota,
+    const findCategory = (categoryId: string) => {
+      const category = event.categories.find((cat) => cat.id === categoryId);
+      if (!category) {
+        throw new BadRequestException(`Category ${categoryId} does not exist for this event`);
+      }
+      return category;
     };
-  });
 
-  return {
-    categoryCounts,
-    totalAmount,
-    luaPayload: JSON.stringify(luaPayloadArray),
-    salesEndTimeSec,
-      uniqueCategoryIds,
-    };
+    const totalAmount = uniqueCategoryIds.reduce((sum, categoryId) => {
+      const category = findCategory(categoryId);
+      return sum + Number(category.price) * categoryCounts.get(categoryId)!;
+    }, 0);
+
+    const luaPayload = this.buildLuaPayload(categoryCounts, (categoryId) => findCategory(categoryId).totalQuota);
+
+    return { categoryCounts, totalAmount, luaPayload, salesEndTimeSec, uniqueCategoryIds };
   }
 
   private async reserveSeatsInRedis(
@@ -332,33 +307,41 @@ async cancelExpiredOrder(orderId: string, categoryCounts?: Record<string, number
     customerId: string,
     luaPayloadJson: string,
     uniqueCategoryIds: string[],
-    salesEndTimeSec: number, // Unix timestamp in seconds
+    salesEndTimeSec: number,
   ) {
-    const holdTimeInSeconds = 900; 
-
-    // 1. Construct KEYS: [orderKey, category:cat1:held, category:cat2:held...]
-    const keys = [
-      orderKey,
-      ...uniqueCategoryIds.map((catId) => `category:${catId}:held`),
-    ];
-
-    // 2. Construct ARGV matching Lua script expectations
+    const keys = this.buildFullReservationKeys(orderKey, uniqueCategoryIds);
     const args = [
       orderId,
       customerId,
       String(salesEndTimeSec),
-      String(holdTimeInSeconds),
-      luaPayloadJson, // Pass directly without re-stringifying
+      String(OrderService.RESERVATION_HOLD_SECONDS),
+      luaPayloadJson,
     ];
 
-    // 3. Execute Redis Lua Script
-      const [statusCode, resultVal, extraInfo] = await this.redis.reserveSeats(
-        keys.length,
-        ...keys,
-        ...args,
-      );
+    const [statusCode, resultVal, extraInfo] = await this.redis.reserveSeats(keys.length, ...keys, ...args);
+    return { statusCode, resultVal, extraInfo };
+  }
 
-      return { statusCode, resultVal, extraInfo };
+  private async scheduleExpiry(orderId: string, eventId: string, ttlSeconds: number, categoryCounts?: Map<string, number>) {
+    await this.expiryQueue.add(
+      'order-expired',
+      { orderId, eventId, categoryCounts },
+      { delay: ttlSeconds * 1000, jobId: `expire-${orderId}` },
+    );
+  }
+
+  private async rescheduleExpiry(orderId: string, eventId: string, ttlSeconds: number) {
+    await this.expiryQueue.remove(`expire-${orderId}`);
+    await this.scheduleExpiry(orderId, eventId, ttlSeconds);
+  }
+
+  private async fallbackRemoveHeldSeats(orderKey: string, counts: Map<string, number>) {
+    const pipeline = this.redis.pipeline();
+    for (const [categoryId, qty] of counts) {
+      pipeline.decrby(this.heldKey(categoryId), qty);
+    }
+    pipeline.del(orderKey);
+    await pipeline.exec();
   }
 
   private async handleExistingSession(existingOrderId: string) {
@@ -367,7 +350,10 @@ async cancelExpiredOrder(orderId: string, categoryCounts?: Record<string, number
     });
 
     if (existingOrder && ['HELD', 'PAYMENT_PENDING'].includes(existingOrder.status)) {
-      const { orderId, checkoutUrl, providerTrxId } = await this.paymentService.existingCheckoutSession(existingOrder.id, existingOrder.customerId)
+      const { orderId, checkoutUrl, providerTrxId } = await this.paymentService.existingCheckoutSession(
+        existingOrder.id,
+        existingOrder.customerId,
+      );
       return {
         providerTrxId,
         orderId: existingOrder.id,
@@ -389,11 +375,75 @@ async cancelExpiredOrder(orderId: string, categoryCounts?: Record<string, number
     throw new BadRequestException(`Order failed: ${resultVal}`);
   }
 
-  private buildCategoryCountsFromTickets(tickets: Array<{ categoryId: string }>) {
-    const counts: Record<string, number> = {};
-    for (const ticket of tickets) {
-      counts[ticket.categoryId] = (counts[ticket.categoryId] || 0) + 1;
+  private isCancellableOrder(status: OrderStatus): boolean {
+    return status === 'HELD' || status === 'PAYMENT_PENDING';
+  }
+
+  private countByCategory<T>(items: T[], categoryIdOf: (item: T) => string): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const item of items) {
+      const categoryId = categoryIdOf(item);
+      counts.set(categoryId, (counts.get(categoryId) ?? 0) + 1);
     }
     return counts;
+  }
+
+  private buildLuaPayload(counts: Map<string, number>, quotaOf?: (categoryId: string) => number): string {
+    return JSON.stringify(
+      [...counts.entries()].map(([id, qty]) => ({
+        id,
+        qty,
+        ...(quotaOf ? { quota: quotaOf(id) } : {}),
+      })),
+    );
+  }
+
+  private heldKey(categoryId: string): string {
+    return `category:${categoryId}:held`;
+  }
+
+  private soldKey(categoryId: string): string {
+    return `category:${categoryId}:sold`;
+  }
+
+  private buildHeldReservationKeys(orderKey: string, categoryIds: string[]): string[] {
+    return [orderKey, ...categoryIds.map((id) => this.heldKey(id))];
+  }
+
+  private buildFullReservationKeys(orderKey: string, categoryIds: string[]): string[] {
+    return [
+      orderKey,
+      ...categoryIds.map((id) => this.heldKey(id)),
+      ...categoryIds.map((id) => this.soldKey(id)),
+    ];
+  }
+
+  async ensureCategoryInventory(eventId: string, categoryIds: string[]): Promise<void> {
+    const event = await this.eventService.findOne(eventId);
+
+    if (!event) {
+      throw new NotFoundException(`Event ${eventId} not found`);
+    }
+    const salesEndTimeSec = Math.floor(new Date(event.salesEndTime).getTime() / 1000);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const ttl = salesEndTimeSec - nowSec;
+
+    if (ttl <= 0) {
+      throw new BadRequestException('Sales have ended');
+    }
+
+    for (const categoryId of categoryIds) {
+      const soldKey = this.soldKey(categoryId);
+      const exists = await this.redis.exists(soldKey);
+
+      if (exists) {
+        continue;
+      }
+
+      const soldQuantity = await this.prisma.ticket.count({
+        where: { categoryId, status: 'AVAILABLE' },
+      });
+      await this.redis.set(soldKey, String(soldQuantity), 'EX', ttl);
+    }
   }
 }

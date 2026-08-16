@@ -11,7 +11,7 @@ import { Payload } from 'src/utils/payload';
 import { UserRoleExt } from 'src/decorators/user_role_ext.decorator';
 import { Role } from '@prisma/client';
 import { Public } from 'src/decorators/public.decorator';
-import { ScanDto } from './dto/scans-dto';
+import { ScanDto } from '../admission-scans/dto/scans-dto';
 
 @ApiTags('Gate')
 @Controller('gates')
@@ -79,21 +79,5 @@ export class GateController {
     @PayloadJWT() payload: Payload,
   ) {
     return this.gateService.remove(id, payload);
-  }
-
-  @Post('scans')
-  @ApiBearerAuth()
-  @UserRoleExt(Role.GATE_OPERATOR)
-  @ApiOperation({ summary: 'Scans a ticket (Gate operator only)' })
-  @ApiSuccessResponse(PrimitiveType.STRING,201,'Scans')
-  @ApiFailureResponse(404, 'Operator not found')
-  @ApiFailureResponse(404, 'Gate id has not been assigned to this operator yet')
-  @ApiFailureResponse(403, 'Forbidden')
-  @ApiFailureResponse(404, 'Ticket not found')
-  scan(
-    @Body() dto: ScanDto,
-    @PayloadJWT() payload: Payload,
-  ) {
-    return this.gateService.scan(payload, dto);
   }
 }

@@ -5,7 +5,9 @@ import { MockTransactionResponseDto } from './response/mock-transaction.response
 
 import { PaymentService } from '../payment/payment.service'; 
 import { OrderService } from '../order/order.service';
-import { OrderStatus } from '@prisma/client';
+import { Order, OrderStatus } from '@prisma/client';
+import { RedisService } from 'src/redis/type/commands';
+import { log } from 'console';
 
 @Injectable()
 export class MockPgService {
@@ -13,7 +15,8 @@ export class MockPgService {
     @Inject(forwardRef(() => PaymentService))
     private readonly paymentService: PaymentService,
     @Inject(forwardRef(() => OrderService))
-    private readonly orderService: OrderService 
+    private readonly orderService: OrderService,
+    private readonly redis:RedisService,
   ) {}
 
   async createTransaction(dto: CreateTransactionDto): Promise<MockTransactionResponseDto> {
@@ -55,11 +58,16 @@ export class MockPgService {
         dto.paymentMethod,
       );
 
-      await this.orderService.updateOrderStatus(orderId, OrderStatus.PAID);
+      await this.orderService.paidOrder(orderId);
 
       return true;
     } catch (error) {
-      throw new InternalServerErrorException('Failed to execute internal payment updates');
+      throw error;
     }
   }
+
+  private async validateOrder(order:Order){
+    
+  }
 }
+

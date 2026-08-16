@@ -13,6 +13,10 @@ export interface CustomRedisCommands {
     ...args: (string | number)[]
   ): Promise<[status: number, messageOrTtl: string, extraInfo?: string]>;
   
+  soldSeat(
+    ...args: (string | number)[]
+  ): Promise<[status: number, messageOrTtl: string, extraInfo?: string]>;
+  
   // You can add your future Lua script here later:
   // releaseSeats(...args: (string | number)[]): Promise<any>;
 }

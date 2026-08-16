@@ -22,7 +22,7 @@ end
 
 -- 3. Verify status inside Hash (HGET instead of GET)
 local status = redis.call("HGET", order_key, "status")
-if status and status ~= "HELD" then
+if status ~= "HELD" then
     return {0, "INVALID_STATE"}
 end
 

@@ -4,18 +4,13 @@ import { UpdateGateDto } from './dto/update-gate.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EventService } from 'src/features/event_management/event/event.service';
 import { Payload } from 'src/utils/payload';
-import { Gate, TicketStatus } from '@prisma/client';
-import { ScanDto } from './dto/scans-dto';
-import { TicketService } from 'src/features/transaction/ticket/ticket.service';
-import { AdmissionScansService } from '../admission-scans/admission-scans.service';
+import { Gate } from '@prisma/client';
 
 @Injectable()
 export class GateService {
   constructor(
     private prisma: PrismaService,
     private eventService: EventService,
-    private admissionScanService: AdmissionScansService,
-    private ticketService: TicketService,
   ) {}
 
   async create(dto: CreateGateDto, payload: Payload): Promise<Gate> {
@@ -98,27 +93,5 @@ export class GateService {
     return this.prisma.gate.delete({
       where: { id },
     });
-  }
-
-  async scan(payload:Payload, dto: ScanDto){
-    const operator = await this.prisma.user.findUnique({
-      where:{
-        id:payload.sub
-      },
-    })
-
-    if(!operator){
-      throw new NotFoundException("Operator not found");
-    }
-
-    if(!operator.gateId){
-      throw new NotFoundException("Gate id has not been assigned to this operator yet");
-    }
-
-    await this.prisma.$transaction(async (tx) => {
-      await this.admissionScanService.createScan(tx, operator, dto.ticketId)
-      await this.ticketService.updateStatus(tx,TicketStatus.SEATED, dto.ticketId, operator.id)
-    })
-    return 'Success scans'
   }
 }

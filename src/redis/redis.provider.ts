@@ -26,6 +26,10 @@ export const RedisProvider: Provider = {
     const luaPathPending = path.join(process.cwd(), 'src', 'redis', 'lua', 'extend_payment_pending.lua');
     const luaScriptPending = await fs.readFile(luaPathPending, 'utf-8');
 
+    // Load sold_seat.lua
+    const luaPathSold = path.join(process.cwd(), 'src', 'redis', 'lua', 'sold_seat.lua');
+    const luaScriptSold = await fs.readFile(luaPathSold, 'utf-8');
+
     // Register custom command
     client.defineCommand(
       'reserveSeats', {
@@ -42,6 +46,12 @@ export const RedisProvider: Provider = {
     client.defineCommand(
       'extendsPaymentPending', {
         lua: luaScriptPending,
+      },
+    );
+
+    client.defineCommand(
+      'soldSeat', {
+        lua: luaScriptSold,
       },
     );
     // You can define more Lua scripts here in the future

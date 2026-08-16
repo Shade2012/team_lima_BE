@@ -4,7 +4,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PayloadJWT } from 'src/decorators/payload_jwt.decorator';
 import { Payload } from 'src/utils/payload';
-import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExcludeEndpoint, ApiOperation } from '@nestjs/swagger';
 import { UserRoleExt } from 'src/decorators/user_role_ext.decorator';
 import { Role } from '@prisma/client';
 import { ApiSuccessResponse, PrimitiveType } from 'src/decorators/api-success-response.decorator';
@@ -23,6 +23,7 @@ export class OrderController {
   @ApiFailureResponse(400, 'Invalid Request / Quota Full / Category does not belong to this event')
   @ApiFailureResponse(403, 'Forbidden')
   @ApiFailureResponse(404, 'Event not found')
+  @ApiFailureResponse(404, 'One or more tickets not found')
   @ApiFailureResponse(404, 'Category not found')
   @Post('event/:eventId')
   async create(
@@ -57,6 +58,7 @@ export class OrderController {
     return this.orderService.findOne(id, payload.sub);
   }
 
+  @ApiExcludeEndpoint()
   @UserRoleExt(Role.CUSTOMER)
   @Get('clear')
   clear(

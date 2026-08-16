@@ -1,7 +1,6 @@
--- KEYS[1] = Order Idempotency Key ("order:customer:<customerId>:event:<eventId>")
--- KEYS[2...] = Category Held Keys ("category:<categoryId>:held")
-
--- ARGV[1] = (Optional) categories_json payload: [{"id":"cat_uuid", "qty":2}]
+-- KEYS[1] = Order Reservation Key
+-- ("order:customer:<customerId>:event:<eventId>:<fingerprint>")
+-- KEYS[2...] = Category Held Keys
 
 local order_key       = KEYS[1]
 local categories_json = ARGV[1]
@@ -24,14 +23,27 @@ end
 -- 2. Decrement Category Held Quotas safely
 for i, item in ipairs(categories) do
     local qty       = tonumber(item.qty)
+
+    if not qty or qty <= 0 then
+        return {
+            0,
+            "INVALID_QUANTITY",
+            item.id
+        }
+    end
+
     local key_index = i + 1
     local cat_key   = KEYS[key_index]
 
     if cat_key then
         local current_held = tonumber(redis.call("GET", cat_key) or "0")
-        -- Prevent negative counts
-        local new_held = math.max(0, current_held - qty)
-        redis.call("SET", cat_key, new_held)
+        
+        if current_held <= 0 then
+        elseif current_held >= qty then
+            redis.call("DECRBY", cat_key, qty)
+        else
+            redis.call("DEL", cat_key, 0)
+        end
     end
 end
 
