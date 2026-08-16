@@ -62,4 +62,19 @@ export class MockPgService {
       throw new InternalServerErrorException('Failed to execute internal payment updates');
     }
   }
+
+  async processRefund(dto: { refundId: string; ticketId: string; amount: number }) {
+    const tokenPayload = {
+      refundId: dto.refundId,
+      ticketId: dto.ticketId,
+      timestamp: Date.now(),
+    };
+    const refundToken = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
+
+    return {
+      success: true,
+      providerRefundId: `REF-${refundToken}`,
+      amount: dto.amount,
+    };
+  }
 }

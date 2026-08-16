@@ -148,14 +148,19 @@ model Payment {
 }
 
 model Refund {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  reason    String?     
-  amount    Int
-  ticketId  String   @unique @map("ticket_id") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id               String       @id @default(uuid(7)) @db.Uuid
+  reason           String?     
+  amount           Int
+  ticketId         String       @unique @map("ticket_id") @db.Uuid
+  rejectReason     String?      @map("reject_reason")
+  status           RefundStatus @default(PENDING)
+  adminId          String?      @map("admin_id") @db.Uuid
+  providerRefundId String?      @unique @map("provider_refund_id")
+  processedAt      DateTime?    @map("processed_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
 
-  ticket    Ticket   @relation(name: "RefundToTicket", fields: [ticketId], references: [id])
+  ticket           Ticket       @relation(name: "RefundToTicket", fields: [ticketId], references: [id])
 
   @@map("refunds")
 }
@@ -241,5 +246,11 @@ enum PaymentMethod {
   GOPAY
   SHOPPE_PAY
   OVO
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 

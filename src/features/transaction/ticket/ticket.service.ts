@@ -1,34 +1,66 @@
-import { Injectable } from '@nestjs/common';
-import { CreateTicketDto } from './dto/create-ticket.dto';
-import { UpdateTicketDto } from './dto/update-ticket.dto';
-import Redis from 'ioredis';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class TicketService {
-  private reserveLuaScript!: string;
-  private extendLuaScript!: string;
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor() {
-    
+  async findMyTickets(customerId: string) {
+    return this.prisma.ticket.findMany({
+      where: {
+        order: {
+          customerId,
+          status: { in: ['PAID', 'PARTIAL_REFUND'] },
+        },
+        status: 'AVAILABLE',
+      },
+      include: {
+        category: {
+          include: {
+            event: {
+              select: {
+                id: true,
+                name: true,
+                eventDate: true,
+                isSeated: true,
+              },
+            },
+          },
+        },
+        seat: true,
+        order: { select: { id: true, status: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
-  create(createTicketDto: CreateTicketDto) {
-    return 'This action adds a new ticket';
-  }
+  async findOneTicket(ticketId: string, customerId: string) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        category: {
+          include: {
+            event: {
+              select: {
+                id: true,
+                name: true,
+                eventDate: true,
+                isSeated: true,
+              },
+            },
+          },
+        },
+        seat: true,
+        order: { select: { id: true, customerId: true, status: true } },
+        scan: true,
+        refund: true,
+      },
+    });
 
-  findAll() {
-    return `This action returns all ticket`;
-  }
+    if (!ticket || ticket.order.customerId !== customerId) {
+      throw new NotFoundException('Ticket not found');
+    }
 
-  findOne(id: number) {
-    return `This action returns a #${id} ticket`;
-  }
-
-  update(id: number, updateTicketDto: UpdateTicketDto) {
-    return `This action updates a #${id} ticket`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} ticket`;
+    return ticket;
   }
 }
