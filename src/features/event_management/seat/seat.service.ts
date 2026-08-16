@@ -38,12 +38,27 @@ export class SeatService {
       );
     }
 
-    const prefix = dto.prefix || 'SEAT';
+    const prefix = dto.prefix ? `${dto.prefix}-` : '';
+    const columns = category.columns || 1; 
 
-    const seatData = Array.from({ length: toCreate }, (_, i) => ({
-      categoryId: dto.categoryId,
-      seatCode: `${prefix}-${String(existingCount + i + 1).padStart(3, '0')}`,
-    }));
+    const seatData = Array.from({ length: toCreate }, (_, i) => {
+      const globalIndex = existingCount + i;
+      const rowIndex = Math.floor(globalIndex / columns);
+      const colIndex = (globalIndex % columns) + 1;
+
+
+      let rowStr = '';
+      let temp = rowIndex;
+      while (temp >= 0) {
+        rowStr = String.fromCharCode(65 + (temp % 26)) + rowStr;
+        temp = Math.floor(temp / 26) - 1;
+      }
+
+      return {
+        categoryId: dto.categoryId,
+        seatCode: `${prefix}${rowStr}-${colIndex}`,
+      };
+    });
 
     const result = await this.prisma.seat.createMany({
       data: seatData,
@@ -58,12 +73,56 @@ export class SeatService {
     };
   }
 
-  async findByCategory(categoryId: string): Promise<Seat[]> {
+  async findByCategory(categoryId: string) {
     await this.ticketCategoryService.findOne(categoryId);
 
-    return this.prisma.seat.findMany({
+    const seats = await this.prisma.seat.findMany({
       where: { categoryId },
       orderBy: { seatCode: 'asc' },
+    });
+
+    const activeTickets = await this.prisma.ticket.findMany({
+      where: {
+        categoryId,
+        status: { notIn: ['CANCELLED', 'EXPIRED', 'REFUND'] },
+        order: {
+          OR: [
+            { status: 'PAID' },
+            {
+              status: { in: ['HELD', 'PAYMENT_PENDING'] },
+              expiresAt: { gt: new Date() },
+            },
+          ],
+        },
+        seatId: { not: null },
+      },
+      include: {
+        order: { select: { status: true } },
+      },
+    });
+
+    const activeSeatMap = new Map(activeTickets.map((t) => [t.seatId, t]));
+
+    return seats.map((seat) => {
+      const parts = seat.seatCode.split('-');
+      const column = parseInt(parts.pop() || '0', 10);
+      const row = parts.pop() || '';
+
+      const activeTicket = activeSeatMap.get(seat.id);
+      let status = 'AVAILABLE';
+      if (activeTicket) {
+        status = activeTicket.order.status === 'PAID' ? 'BOOKED' : 'HELD';
+      }
+
+      return {
+        id: seat.id,
+        categoryId: seat.categoryId,
+        seatCode: seat.seatCode,
+        row,
+        column,
+        status,
+        createdAt: seat.createdAt,
+      };
     });
   }
 

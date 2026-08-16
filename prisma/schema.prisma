@@ -58,6 +58,9 @@ model TicketCategory {
   name       String
   price      Int
   totalQuota Int      @map("total_quota")
+  posIndex   Int      @default(0) @map("pos_index")
+  rows       Int?     @map("rows")
+  columns    Int?     @map("columns")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 

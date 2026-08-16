@@ -35,7 +35,7 @@ export class TicketCategoryController {
   @Get('event/:eventId')
   @Public()
   @ApiOperation({ summary: 'Get all ticket categories for an event' })
-  @ApiSuccessResponse(TicketCategoryResponseDto)
+  @ApiSuccessResponse(TicketCategoryResponseDto, 200, 'Request successful', true)
   @ApiFailureResponse(404, 'Event not found')
   findByEvent(@Param('eventId', ParseUUIDPipe) eventId: string) {
     return this.ticketCategoryService.findByEvent(eventId);
