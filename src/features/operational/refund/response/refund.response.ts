@@ -85,7 +85,6 @@ export class CreateRefundResponseDto {
   updatedAt!: string;
 }
 
-// Admin Approve Refund
 export class ApproveRefundResponseDto {
   @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000010' })
   id!: string;
@@ -121,7 +120,6 @@ export class ApproveRefundResponseDto {
   updatedAt!: string;
 }
 
-// Admin Reject Refund
 export class RejectRefundResponseDto {
   @ApiProperty({ example: '019146a0-0000-7abc-0000-abcdef000010' })
   id!: string;

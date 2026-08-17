@@ -12,6 +12,7 @@ import { PaymentService } from '../payment/payment.service';
 import { TicketService } from '../ticket/ticket.service';
 import { createReservationFingerprint, createReservationFingerprintData } from 'src/utils/order_fingerprint_helper';
 import { OrderWithTickets } from './constant/order-with-ticket';
+import { SseService } from '../../sse/sse.service';
 
 @Injectable()
 export class OrderService {
@@ -24,6 +25,7 @@ export class OrderService {
     private readonly prisma: PrismaService,
     private readonly eventService: EventService,
     private readonly ticketService: TicketService,
+    private readonly sseService: SseService,
     @Inject(forwardRef(() => PaymentService))
     private readonly paymentService: PaymentService,
   ) {}
@@ -111,6 +113,24 @@ export class OrderService {
       });
 
       await this.scheduleExpiry(order.id, eventId, ttlSeconds, categoryCounts);
+
+      const orderWithSeats = await this.prisma.order.findUnique({
+        where: { id: order.id },
+        include: { tickets: { include: { seat: true } } },
+      });
+
+      if (orderWithSeats) {
+        this.sseService.emitSeatUpdate(
+          eventId,
+          orderWithSeats.tickets.map((t) => ({
+            seatId: t.seatId,
+            seatCode: t.seat?.seatCode ?? null,
+            categoryId: t.categoryId,
+            status: 'HELD',
+          })),
+        );
+        this.sseService.emitDashboardUpdate(eventId, 'ORDER_CREATED');
+      }
 
       return await this.paymentService.createCheckoutSession(order.id, payload.sub);
     } catch (exception) {
@@ -224,7 +244,7 @@ export class OrderService {
       where: { id: orderId },
       include: {
         event: { select: { id: true, salesEndTime: true } },
-        tickets: true,
+        tickets: { include: { seat: true } },
       },
     });
 
@@ -258,6 +278,7 @@ export class OrderService {
 
     if (isSalesEnded) {
       await this.redis.del(orderKey);
+      this.emitOrderCancelledSse(order, isSalesEnded);
       return true;
     }
 
@@ -274,7 +295,25 @@ export class OrderService {
       await this.fallbackRemoveHeldSeats(orderKey, counts);
     }
 
+    this.emitOrderCancelledSse(order, isSalesEnded);
+
     return true;
+  }
+
+  private emitOrderCancelledSse(order: any, isSalesEnded: boolean) {
+    this.sseService.emitSeatUpdate(
+      order.eventId,
+      order.tickets.map((t: any) => ({
+        seatId: t.seatId,
+        seatCode: t.seat?.seatCode ?? null,
+        categoryId: t.categoryId,
+        status: 'AVAILABLE',
+      }))
+    );
+    this.sseService.emitDashboardUpdate(
+      order.eventId,
+      isSalesEnded ? 'ORDER_EXPIRED' : 'ORDER_CANCELLED'
+    );
   }
 
   private async prepareOrderMetadata(eventId: string, seats: Array<{ categoryId: string; seatId?: string }>) {

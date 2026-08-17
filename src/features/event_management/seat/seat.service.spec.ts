@@ -39,7 +39,7 @@ const mockCategoryService = {
 
 describe('SeatService', () => {
   let service: SeatService;
-  const payload = new Payload('org-uuid-001', 'org', Role.ORGANIZER);
+  const payload = new Payload('org-uuid-001', 'org', Role.ORGANIZER, 0, 0);
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -66,8 +66,22 @@ describe('SeatService', () => {
       expect(mockPrisma.seat.createMany).toHaveBeenCalled();
     });
 
+    it('should skip blocked seats', async () => {
+      const catWithBlocked = { ...mockCategory, columns: 2, totalQuota: 2, blockedSeats: ['A-1'] };
+      mockCategoryService.findOne.mockResolvedValueOnce(catWithBlocked);
+      
+      await service.bulkCreate({ categoryId: 'cat-uuid-001', prefix: 'VIP' }, payload);
+      
+      expect(mockPrisma.seat.createMany).toHaveBeenCalledWith({
+        data: [
+          { categoryId: 'cat-uuid-001', seatCode: 'VIP-A-2' },
+          { categoryId: 'cat-uuid-001', seatCode: 'VIP-B-1' },
+        ],
+      });
+    });
+
     it('should throw BadRequestException if quota is full', async () => {
-      mockPrisma.seat.count.mockResolvedValueOnce(100); // Already 100 seats
+      mockPrisma.seat.count.mockResolvedValueOnce(100); 
       await expect(service.bulkCreate({ categoryId: 'cat-uuid-001' }, payload)).rejects.toThrow(BadRequestException);
     });
 

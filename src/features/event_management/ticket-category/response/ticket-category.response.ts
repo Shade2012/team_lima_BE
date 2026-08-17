@@ -25,6 +25,9 @@ export class TicketCategoryResponseDto {
   @ApiProperty({ example: 10, required: false, nullable: true })
   columns!: number | null;
 
+  @ApiProperty({ example: ['A-5', 'A-6'], required: false, type: [String] })
+  blockedSeats!: string[];
+
   @ApiProperty({ example: 90 })
   availableQuota!: number;
 

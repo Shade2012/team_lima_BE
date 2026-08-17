@@ -9,8 +9,7 @@ export class SimulatePaymentDto {
   providerTrxId!: string;
 
   @ApiProperty({ enum: PaymentMethod, description: 'Selected payment method chosen on Snap UI' })
-  @IsEnum(PaymentMethod)
-  @IsNotEmpty()
+  @IsString()
   paymentMethod!: PaymentMethod;
 }
 

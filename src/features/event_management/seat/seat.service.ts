@@ -40,12 +40,36 @@ export class SeatService {
 
     const prefix = dto.prefix ? `${dto.prefix}-` : '';
     const columns = category.columns || 1; 
+    const blockedSeats = category.blockedSeats || [];
 
-    const seatData = Array.from({ length: toCreate }, (_, i) => {
-      const globalIndex = existingCount + i;
-      const rowIndex = Math.floor(globalIndex / columns);
-      const colIndex = (globalIndex % columns) + 1;
+    const seatData: { categoryId: string; seatCode: string }[] = [];
+    let createdCount = 0;
+    let gridIndex = 0;
+    let validSeatCounter = 0;
 
+    // Advance gridIndex past existing seats
+    while (validSeatCounter < existingCount) {
+      const rowIndex = Math.floor(gridIndex / columns);
+      const colIndex = (gridIndex % columns) + 1;
+      
+      let rowStr = '';
+      let temp = rowIndex;
+      while (temp >= 0) {
+        rowStr = String.fromCharCode(65 + (temp % 26)) + rowStr;
+        temp = Math.floor(temp / 26) - 1;
+      }
+
+      const coreCode = `${rowStr}-${colIndex}`;
+      if (!blockedSeats.includes(coreCode)) {
+        validSeatCounter++;
+      }
+      gridIndex++;
+    }
+
+    // Generate remaining seats
+    while (createdCount < toCreate) {
+      const rowIndex = Math.floor(gridIndex / columns);
+      const colIndex = (gridIndex % columns) + 1;
 
       let rowStr = '';
       let temp = rowIndex;
@@ -54,11 +78,22 @@ export class SeatService {
         temp = Math.floor(temp / 26) - 1;
       }
 
-      return {
-        categoryId: dto.categoryId,
-        seatCode: `${prefix}${rowStr}-${colIndex}`,
-      };
-    });
+      const coreCode = `${rowStr}-${colIndex}`;
+      
+      if (!blockedSeats.includes(coreCode)) {
+        seatData.push({
+          categoryId: dto.categoryId,
+          seatCode: `${prefix}${coreCode}`,
+        });
+        createdCount++;
+      }
+      
+      gridIndex++;
+
+      if (category.rows && gridIndex > (category.rows * columns) * 2) {
+        break; // safety fallback
+      }
+    }
 
     const result = await this.prisma.seat.createMany({
       data: seatData,

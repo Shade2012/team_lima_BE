@@ -44,8 +44,8 @@ const mockEventService = {
 
 describe('TicketCategoryService', () => {
   let service: TicketCategoryService;
-  const payload = new Payload('org-uuid-001', 'org', Role.ORGANIZER);
-  const otherPayload = new Payload('other-uuid', 'other', Role.ORGANIZER);
+  const payload = new Payload('org-uuid-001', 'org', Role.ORGANIZER, 0, 0);
+  const otherPayload = new Payload('other-uuid', 'other', Role.ORGANIZER, 0, 0);
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
