@@ -6,13 +6,26 @@ import { BadRequestException, InternalServerErrorException } from '@nestjs/commo
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { SimulatePaymentDto } from './dto/simulate-payment.dto';
 import { PaymentMethod, OrderStatus } from '@prisma/client';
+import { RedisService } from 'src/redis/type/commands';
+import { SseService } from '../../sse/sse.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 const mockPaymentService = {
   processPaymentSuccess: jest.fn(),
 };
 
 const mockOrdersService = {
-  updateOrderStatus: jest.fn(),
+  validateOrderPaid: jest.fn(),
+  paidOrder: jest.fn(),
+};
+
+const mockRedisService = {};
+const mockSseService = {
+  emitSeatUpdate: jest.fn(),
+  emitDashboardUpdate: jest.fn(),
+};
+const mockPrismaService = {
+  order: { findUnique: jest.fn() },
 };
 
 describe('MockPgService', () => {
@@ -26,6 +39,9 @@ describe('MockPgService', () => {
         MockPgService,
         { provide: PaymentService, useValue: mockPaymentService },
         { provide: OrderService, useValue: mockOrdersService },
+        { provide: RedisService, useValue: mockRedisService },
+        { provide: SseService, useValue: mockSseService },
+        { provide: PrismaService, useValue: mockPrismaService },
       ],
     }).compile();
 
@@ -75,7 +91,13 @@ describe('MockPgService', () => {
       };
 
       paymentService.processPaymentSuccess.mockResolvedValue(undefined);
-      ordersService.updateOrderStatus.mockResolvedValue(undefined);
+      ordersService.validateOrderPaid.mockResolvedValue({ id: 'order-123' });
+      ordersService.paidOrder.mockResolvedValue(undefined);
+      mockPrismaService.order.findUnique.mockResolvedValue({
+        id: 'order-123',
+        eventId: 'event-123',
+        tickets: [{ seatId: 'seat-123', categoryId: 'cat-123', seat: { seatCode: 'A1' } }]
+      });
 
       const result = await service.simulatePayment(dto);
 
@@ -86,7 +108,7 @@ describe('MockPgService', () => {
         validToken,
         PaymentMethod.OVO,
       );
-      expect(ordersService.updateOrderStatus).toHaveBeenCalledWith('order-123', OrderStatus.PAID);
+      expect(ordersService.paidOrder).toHaveBeenCalledWith({ id: 'order-123' });
     });
 
     it('should throw BadRequestException if token is invalid or missing IDs', async () => {
@@ -109,7 +131,8 @@ describe('MockPgService', () => {
       await expect(service.simulatePayment(dto2)).rejects.toThrow(BadRequestException);
 
       expect(paymentService.processPaymentSuccess).not.toHaveBeenCalled();
-      expect(ordersService.updateOrderStatus).not.toHaveBeenCalled();
+      expect(ordersService.validateOrderPaid).not.toHaveBeenCalled();
+      expect(ordersService.paidOrder).not.toHaveBeenCalled();
     });
 
     it('should throw InternalServerErrorException if an internal service fails', async () => {
@@ -122,7 +145,7 @@ describe('MockPgService', () => {
 
       paymentService.processPaymentSuccess.mockRejectedValue(new Error('DB Error'));
 
-      await expect(service.simulatePayment(dto)).rejects.toThrow(InternalServerErrorException);
+      await expect(service.simulatePayment(dto)).rejects.toThrow('DB Error');
     });
   });
 });

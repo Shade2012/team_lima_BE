@@ -5,7 +5,8 @@ import { MockTransactionResponseDto } from './response/mock-transaction.response
 import { PaymentService } from '../payment/payment.service'; 
 import { OrderService } from '../order/order.service';
 import { RedisService } from 'src/redis/type/commands';
-import { log } from 'console';
+import { SseService } from '../../sse/sse.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class MockPgService {
@@ -15,6 +16,8 @@ export class MockPgService {
     @Inject(forwardRef(() => OrderService))
     private readonly orderService: OrderService,
     private readonly redis:RedisService,
+    private readonly sseService: SseService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async createTransaction(dto: CreateTransactionDto): Promise<MockTransactionResponseDto> {
@@ -58,6 +61,24 @@ export class MockPgService {
       );
 
       await this.orderService.paidOrder(order);
+
+      const orderWithSeats = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: { tickets: { include: { seat: true } } },
+      });
+
+      if (orderWithSeats) {
+        this.sseService.emitSeatUpdate(
+          orderWithSeats.eventId,
+          orderWithSeats.tickets.map((t) => ({
+            seatId: t.seatId,
+            seatCode: t.seat?.seatCode ?? null,
+            categoryId: t.categoryId,
+            status: 'BOOKED',
+          })),
+        );
+        this.sseService.emitDashboardUpdate(orderWithSeats.eventId, 'ORDER_PAID');
+      }
 
       return true;
     } catch (error) {

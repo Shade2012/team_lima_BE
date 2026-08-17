@@ -26,16 +26,22 @@ import { PaymentModule } from './features/transaction/payment/payment.module';
 import { MockPgModule } from './features/transaction/mock-pg/mock-pg.module';
 import { AdmissionScansModule } from './features/event_management/admission-scans/admission-scans.module';
 import { RefundModule } from './features/operational/refund/refund.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { SseModule } from './features/sse/sse.module';
 
 
 @Module({
   imports: [
-    JwtModule.register({
-      secret: process.env.JWT_CONSTANT,
+    JwtModule.registerAsync({
       global: true,
+      useFactory: () => ({
+        secret: process.env.JWT_CONSTANT,
+      }),
     }),
     ScheduleModule.forRoot(),
 
+    EventEmitterModule.forRoot(),
+    SseModule,
     RedisIoModule,
 
     CacheModule.registerAsync({

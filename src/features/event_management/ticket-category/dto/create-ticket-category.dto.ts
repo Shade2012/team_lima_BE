@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Min, IsArray } from 'class-validator';
 
 export class CreateTicketCategoryDto {
   @ApiProperty({
@@ -69,4 +69,15 @@ export class CreateTicketCategoryDto {
   @IsInt()
   @Min(1)
   columns?: number;
+
+  @ApiProperty({
+    description: 'Array of blocked seat coordinates (e.g. ["1-5", "A-12"])',
+    example: ['1-5', '1-6'],
+    required: false,
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  blockedSeats?: string[];
 }

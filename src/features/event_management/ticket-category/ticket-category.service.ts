@@ -27,7 +27,8 @@ export class TicketCategoryService {
       if (!dto.rows || !dto.columns) {
         throw new BadRequestException('Seated events must provide rows and columns for category');
       }
-      totalQuota = dto.rows * dto.columns;
+      const blockedCount = dto.blockedSeats?.length || 0;
+      totalQuota = (dto.rows * dto.columns) - blockedCount;
     } else {
       if (!totalQuota) {
         throw new BadRequestException('Non-seated events must provide totalQuota for category');
@@ -43,6 +44,7 @@ export class TicketCategoryService {
         posIndex: dto.posIndex || 0,
         rows: event.isSeated ? dto.rows : null,
         columns: event.isSeated ? dto.columns : null,
+        blockedSeats: event.isSeated ? dto.blockedSeats || [] : [],
       },
     });
   }

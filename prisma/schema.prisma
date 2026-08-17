@@ -60,8 +60,9 @@ model TicketCategory {
   totalQuota Int      @map("total_quota")
   posIndex   Int      @default(0) @map("pos_index")
   rows       Int?     @map("rows")
-  columns    Int?     @map("columns")
-  createdAt  DateTime @default(now()) @map("created_at")
+  columns       Int?     @map("columns")
+  blockedSeats  String[] @default([]) @map("blocked_seats")
+  createdAt     DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   event      Event    @relation(name: "EventToTicketCategory", fields: [eventId], references: [id])

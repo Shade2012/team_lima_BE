@@ -2,7 +2,6 @@ import { ApiProperty } from "@nestjs/swagger";
 import { CreateUserDto } from "./create-user.dto";
 import { IsEnum, IsNotEmpty, IsString, IsUUID } from "class-validator";
 import { Role } from "@prisma/client";
-// import { OmitType } from "@nestjs/mapped-types";
 import { OmitType } from "@nestjs/swagger";
 
 export class CreateGateOperatorDto extends OmitType(CreateUserDto,['role']){    
