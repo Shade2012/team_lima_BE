@@ -1,5 +1,6 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { TicketResponseDto } from "../../ticket/response/ticket-response";
+import { PaymentResponseDto } from "../../payment/response/payment-response.dto";
 
 export class OrderResponseDto {
   @ApiProperty({ example: '01a0047f-e150-751b-b3d3-9d071a3ed6bb' })
@@ -31,4 +32,7 @@ export class OrderResponseDto {
 
   @ApiProperty({ type: [TicketResponseDto] })
   tickets!: TicketResponseDto[];
+
+  @ApiPropertyOptional({ type: [PaymentResponseDto] })
+  payments?: PaymentResponseDto[];
 }
