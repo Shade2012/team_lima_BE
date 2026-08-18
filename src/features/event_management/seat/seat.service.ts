@@ -47,7 +47,6 @@ export class SeatService {
     let gridIndex = 0;
     let validSeatCounter = 0;
 
-    // Advance gridIndex past existing seats
     while (validSeatCounter < existingCount) {
       const rowIndex = Math.floor(gridIndex / columns);
       const colIndex = (gridIndex % columns) + 1;

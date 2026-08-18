@@ -13,6 +13,8 @@ import { TicketService } from '../ticket/ticket.service';
 import { createReservationFingerprint, createReservationFingerprintData } from 'src/utils/order_fingerprint_helper';
 import { OrderWithTickets } from './constant/order-with-ticket';
 import { SseService } from '../../sse/sse.service';
+import { WalletService } from '../wallet/wallet.service';
+import { PaymentMethod } from '@prisma/client';
 
 @Injectable()
 export class OrderService {
@@ -28,12 +30,13 @@ export class OrderService {
     private readonly sseService: SseService,
     @Inject(forwardRef(() => PaymentService))
     private readonly paymentService: PaymentService,
+    private readonly walletService: WalletService,
   ) {}
 
   async findOne(id: string, customerId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { customer: true },
+      include: { customer: true, payments: true },
     });
     if (!order || order.customer?.id !== customerId) {
       throw new NotFoundException('Order not found');
@@ -132,6 +135,55 @@ export class OrderService {
         this.sseService.emitDashboardUpdate(eventId, 'ORDER_CREATED');
       }
 
+      if (dto.paymentMethod === PaymentMethod.VELOCE_PAY) {
+        // Pay using wallet
+        await this.walletService.pay(customerId, totalAmount, order.id);
+        
+        // Change order to payment pending temporarily to allow paidOrder to work (it checks if pending)
+        await this.markAsPaymentPending(order.id, customerId);
+
+        const orderWithTickets = await this.prisma.order.findUnique({
+          where: { id: order.id },
+          include: {
+            tickets: { select: { id: true, categoryId: true, seatId: true, seat: { select: { seatCode: true } } } },
+          },
+        });
+
+        // Mark as paid
+        await this.paidOrder(orderWithTickets as OrderWithTickets);
+
+        // Emit SSE events for successful payment
+        this.sseService.emitSeatUpdate(
+          eventId,
+          (orderWithTickets?.tickets || []).map((t: any) => ({
+            seatId: t.seatId,
+            seatCode: t.seat?.seatCode ?? null,
+            categoryId: t.categoryId,
+            status: 'BOOKED',
+          })),
+        );
+        this.sseService.emitDashboardUpdate(eventId, 'ORDER_PAID');
+
+        // Record payment
+        await this.prisma.payment.create({
+          data: {
+            amount: totalAmount,
+            orderId: order.id,
+            status: 'SUCCESS',
+            method: PaymentMethod.VELOCE_PAY,
+            providerTrxId: `VPAY-${order.id}`,
+            paidAt: new Date(),
+          },
+        });
+
+        return {
+          orderId: order.id,
+          totalAmount,
+          paymentMethod: PaymentMethod.VELOCE_PAY,
+          status: 'PAID',
+        };
+      }
+
       return await this.paymentService.createCheckoutSession(order.id, payload.sub);
     } catch (exception) {
       if (isReservedInRedis) {
@@ -193,7 +245,12 @@ export class OrderService {
       where: { id: orderId },
       include: {
         tickets: {
-          select: { id: true, categoryId: true },
+          select: { 
+            id: true, 
+            categoryId: true,
+            seatId: true,
+            seat: { select: { seatCode: true } }
+          },
         },
       },
     });

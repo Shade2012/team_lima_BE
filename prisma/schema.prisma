@@ -22,6 +22,7 @@ model User {
   ticketLogs     TicketLog[]     @relation(name: "TicketLogToUser")
   admissionScans AdmissionScan[] @relation(name: "AdmissionScanToUser")
   gate           Gate?           @relation(name: "GateToUser", fields: [gateId], references: [id])
+  wallet         Wallet?         @relation(name: "WalletToUser")
 
   @@map("users")
 }
@@ -251,6 +252,7 @@ enum PaymentMethod {
   GOPAY
   SHOPPE_PAY
   OVO
+  VELOCE_PAY
 }
 
 enum RefundStatus {
@@ -259,3 +261,37 @@ enum RefundStatus {
   REJECTED
 }
 
+
+model Wallet {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  balance   Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User                @relation(name: "WalletToUser", fields: [userId], references: [id])
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id        String                @id @default(uuid(7)) @db.Uuid
+  walletId  String                @map("wallet_id") @db.Uuid
+  amount    Int
+  type      WalletTransactionType
+  refId     String?               @map("ref_id")
+  note      String?
+  createdAt DateTime              @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@map("wallet_transactions")
+}
+
+enum WalletTransactionType {
+  TOP_UP
+  PAYMENT
+  REFUND
+}
