@@ -160,7 +160,6 @@ export class RefundService {
       throw new BadRequestException('Ticket is no longer available (might have been used). Cannot approve refund.');
     }
 
-    // Process refund directly to customer's wallet
     await this.walletService.refundToWallet(
       refund.ticket.order.customerId, 
       refund.amount, 
