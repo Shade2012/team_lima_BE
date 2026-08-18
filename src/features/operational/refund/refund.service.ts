@@ -6,6 +6,7 @@ import { MockPgService } from '../../transaction/mock-pg/mock-pg.service';
 import { RefundStatus, TicketStatus, OrderStatus, Role } from '@prisma/client';
 import { RedisService } from 'src/redis/type/commands';
 import { Payload } from 'src/utils/payload';
+import { WalletService } from '../../transaction/wallet/wallet.service';
 
 @Injectable()
 export class RefundService {
@@ -13,6 +14,7 @@ export class RefundService {
     private readonly prisma: PrismaService,
     private readonly mockPgService: MockPgService,
     private readonly redis: RedisService,
+    private readonly walletService: WalletService,
   ) {}
 
   async requestRefund(customerId: string, dto: CreateRefundDto) {
@@ -143,7 +145,7 @@ export class RefundService {
   async approveRefund(refundId: string, adminId: string) {
     const refund = await this.prisma.refund.findUnique({
       where: { id: refundId },
-      include: { ticket: true },
+      include: { ticket: { include: { order: true } } },
     });
 
     if (!refund) {
@@ -158,11 +160,11 @@ export class RefundService {
       throw new BadRequestException('Ticket is no longer available (might have been used). Cannot approve refund.');
     }
 
-    const pgResponse = await this.mockPgService.processRefund({
-      refundId: refund.id,
-      ticketId: refund.ticketId,
-      amount: refund.amount,
-    });
+    await this.walletService.refundToWallet(
+      refund.ticket.order.customerId, 
+      refund.amount, 
+      refund.id
+    );
 
     return this.prisma.$transaction(async (tx) => {
       const updatedRefund = await tx.refund.update({
@@ -170,7 +172,7 @@ export class RefundService {
         data: {
           status: RefundStatus.APPROVED,
           adminId,
-          providerRefundId: pgResponse.providerRefundId,
+          providerRefundId: `WALLET-REF-${refund.id}`,
           processedAt: new Date(),
         },
       });
