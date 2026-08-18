@@ -10,6 +10,12 @@ export class EventResponseDto {
   @ApiProperty({ example: 'Konser Sheila On 7 Jakarta 2026' })
   name!: string;
 
+  @ApiProperty({ example: 'https://ini_url_image.jpg' })
+  imageUrl!: string;
+
+  @ApiProperty({ example: 'Lorem Ipsum' })
+  description!: string;
+
   @ApiProperty({ example: true })
   isSeated!: boolean;
 

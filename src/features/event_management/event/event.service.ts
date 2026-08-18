@@ -9,25 +9,50 @@ import {
   CategoryStatisticsResponseDto,
   EventStatisticsResponseDto,
 } from './response/event-statistics.response';
+import { R2StorageService } from 'src/r2/r2-storage/r2-storage.service';
+import { extname } from 'path';
+import { randomBytes } from 'crypto';
+import { EventWithImage } from './type/event-with-image';
 
 @Injectable()
 export class EventService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private r2StorageService: R2StorageService
+  ) {}
 
-  async create(dto: CreateEventDto, payload: Payload): Promise<Event> {
-    return this.prisma.event.create({
-      data: {
-        organizerId: payload.sub,
-        name: dto.name,
-        isSeated: dto.isSeated,
-        salesStartTime: dto.salesStartTime,
-        salesEndTime: dto.salesEndTime,
-        eventDate: dto.eventDate,
-        refundEndDate: dto.refundEndDate,
-        refundPolicy: dto.refundPolicy,
-        refundPercentage: dto.refundPercentage,
-      },
-    });
+  async create(dto: CreateEventDto, payload: Payload, file: Express.Multer.File): Promise<Event> {
+
+    if(!file){
+      throw new BadRequestException([
+        {
+            "field": "image",
+            "error": "image is required"
+        }
+      ])
+    }
+    try {
+      const key = await this.r2StorageService.setImage(file,'events')
+      const event = await this.prisma.event.create({
+        data: {
+          organizerId: payload.sub,
+          name: dto.name,
+          description: dto.description,
+          imageKey: key,
+          isSeated: dto.isSeated,
+          salesStartTime: dto.salesStartTime,
+          salesEndTime: dto.salesEndTime,
+          eventDate: dto.eventDate,
+          refundEndDate: dto.refundEndDate,
+          refundPolicy: dto.refundPolicy,
+          refundPercentage: dto.refundPercentage,
+        },
+      });
+
+      return event
+    } catch (error) {
+      throw new BadRequestException('Failed to upload file to cloud storage.');
+    }
   }
 
   async findAll(): Promise<Event[]> {
@@ -59,6 +84,8 @@ export class EventService {
       select: {
         id: true,
         organizerId: true,
+        description:true,
+        imageKey:true,
         name: true,
         isSeated: true,
         salesStartTime: true,
@@ -73,7 +100,7 @@ export class EventService {
     });
   }
 
-  async update(id: string, dto: UpdateEventDto, payload: Payload): Promise<Event> {
+  async update(id: string, dto: UpdateEventDto, payload: Payload, image?: Express.Multer.File): Promise<Event> {
     const event = await this.findOne(id);
 
     if (event.organizerId !== payload.sub) {
@@ -116,13 +143,26 @@ export class EventService {
         );
       }
     }
+    
+    const oldImageKey = event.imageKey;
+    let imageKey = event.imageKey;
 
-    return this.prisma.event.update({
+    if(image){
+      imageKey = await this.r2StorageService.setImage(image,'events')
+    }
+
+    const result = this.prisma.event.update({
       where: { id },
       data: {
         ...dto,
+        imageKey
       },
     });
+
+    if(oldImageKey && imageKey != oldImageKey){
+      await this.r2StorageService.deleteObject(oldImageKey)
+    }
+    return result
   }
 
   async remove(id: string, payload: Payload): Promise<Event> {
@@ -230,5 +270,21 @@ export class EventService {
       categories,
     };
   }
-}
 
+  toEventResponse(event: EventWithImage) {
+    const { imageKey, ...rest } = event;
+
+    return {
+      ...rest,
+      imageUrl: imageKey
+        ? this.r2StorageService.getPublicUrl(imageKey)
+        : null,
+    };
+  }
+  
+  toEventResponses(events: EventWithImage[]) {
+    return events.map((event) =>
+      this.toEventResponse(event),
+    );
+  }
+}

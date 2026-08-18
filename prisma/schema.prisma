@@ -30,6 +30,8 @@ model Event {
   id               String           @id @default(uuid(7)) @db.Uuid
   organizerId      String           @map("organizer_id") @db.Uuid
   name             String
+  imageKey         String?          @map("image_key")
+  description      String?          @map("description")
   isSeated         Boolean          @map("is_seated")
   salesStartTime   DateTime         @map("sales_start_time")
   salesEndTime     DateTime         @map("sales_end_time")

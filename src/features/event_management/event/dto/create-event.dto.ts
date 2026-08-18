@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDate,
@@ -22,10 +22,19 @@ export class CreateEventDto {
   name!: string;
 
   @ApiProperty({
+    description: 'Event description',
+    example: 'Lorem Ipsum',
+  })
+  @IsNotEmpty()
+  @IsString()
+  description!: string;
+
+  @ApiProperty({
     description: 'Whether this event uses a seated layout',
     example: true,
   })
   @IsNotEmpty()
+  @Transform(({ value }) => value === 'true')
   @IsBoolean()
   isSeated!: boolean;
 
@@ -95,6 +104,7 @@ export class CreateEventDto {
     maximum: 100,
   })
   @IsNotEmpty()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   @Max(100)

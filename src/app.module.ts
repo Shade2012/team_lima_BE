@@ -28,6 +28,7 @@ import { AdmissionScansModule } from './features/event_management/admission-scan
 import { RefundModule } from './features/operational/refund/refund.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SseModule } from './features/sse/sse.module';
+import { R2StorageModule } from './r2/r2-storage/r2-storage.module';
 
 
 @Module({
@@ -63,6 +64,7 @@ import { SseModule } from './features/sse/sse.module';
       }
     }),
     AuthModule,
+    R2StorageModule,
     PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule, OrderModule, TicketModule,
     PaymentModule, MockPgModule, AdmissionScansModule, RefundModule
   ],
