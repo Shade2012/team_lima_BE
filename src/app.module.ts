@@ -3,7 +3,6 @@ import { CacheModule } from '@nestjs/cache-manager';
 import {redisStore} from 'cache-manager-redis-yet'
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ExampleSwaggerModule } from './features/example_swagger/example_swagger.module';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -73,7 +72,7 @@ import { WalletModule } from './features/transaction/wallet/wallet.module';
     }),
     AuthModule,
     R2StorageModule,
-    PrismaModule, ExampleSwaggerModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule, OrderModule, TicketModule,
+    PrismaModule, UserModule, EventModule, TicketCategoryModule, SeatModule, GateModule, OrderModule, TicketModule,
     PaymentModule, MockPgModule, AdmissionScansModule, RefundModule, WalletModule
   ],
   controllers: [AppController],

@@ -35,7 +35,7 @@ export class UserController {
   @ApiFailureResponse(429, 'Too many requests. Rate limit exceeded')
   @Throttle({
     default:{
-      limit: 5,
+      limit: 20,
       ttl: 60_000
     }
   })
@@ -56,7 +56,7 @@ export class UserController {
   })
   @Throttle({
     default:{
-      limit: 5,
+      limit: 20,
       ttl: 60_000
     }
   })
@@ -74,7 +74,7 @@ export class UserController {
   })
   @Throttle({
     default:{
-      limit: 5,
+      limit: 20,
       ttl: 60_000
     }
   })

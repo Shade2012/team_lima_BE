@@ -5,13 +5,33 @@ import { OrderService } from './order.service';
 describe('OrderController', () => {
   let controller: OrderController;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [OrderController],
-      providers: [OrderService],
-    }).compile();
+  let orderService: {
+    create: jest.Mock;
+  };
 
-    controller = module.get<OrderController>(OrderController);
+  beforeEach(async () => {
+    orderService = {
+      create: jest.fn(),
+    };
+
+    const module: TestingModule =
+      await Test.createTestingModule({
+        controllers: [OrderController],
+        providers: [
+          {
+            provide: OrderService,
+            useValue: orderService,
+          },
+        ],
+      }).compile();
+
+    controller = module.get<OrderController>(
+      OrderController,
+    );
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
