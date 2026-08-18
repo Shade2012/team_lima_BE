@@ -172,9 +172,15 @@ export class EventService {
       throw new ForbiddenException('You do not have permission to delete this event');
     }
 
-    return this.prisma.event.delete({
+    const result = this.prisma.event.delete({
       where: { id },
     });
+
+    if(event.imageKey){
+      await this.r2StorageService.deleteObject(event.imageKey)
+    }
+    
+    return result
   }
 
   async getEventStatistics(id: string, payload: Payload): Promise<EventStatisticsResponseDto> {
