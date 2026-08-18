@@ -136,10 +136,8 @@ export class OrderService {
       }
 
       if (dto.paymentMethod === PaymentMethod.VELOCE_PAY) {
-        // Pay using wallet
         await this.walletService.pay(customerId, totalAmount, order.id);
         
-        // Change order to payment pending temporarily to allow paidOrder to work (it checks if pending)
         await this.markAsPaymentPending(order.id, customerId);
 
         const orderWithTickets = await this.prisma.order.findUnique({
@@ -149,10 +147,8 @@ export class OrderService {
           },
         });
 
-        // Mark as paid
         await this.paidOrder(orderWithTickets as OrderWithTickets);
 
-        // Emit SSE events for successful payment
         this.sseService.emitSeatUpdate(
           eventId,
           (orderWithTickets?.tickets || []).map((t: any) => ({
@@ -164,7 +160,6 @@ export class OrderService {
         );
         this.sseService.emitDashboardUpdate(eventId, 'ORDER_PAID');
 
-        // Record payment
         await this.prisma.payment.create({
           data: {
             amount: totalAmount,
