@@ -14,6 +14,7 @@ import { JwtAccessToken } from 'src/decorators/jwt.-access-token.decorator';
 import { UserRoleExt } from 'src/decorators/user_role_ext.decorator';
 import { Role } from '@prisma/client';
 import { CreateGateOperatorDto } from './dto/create-gate-operator.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('User')
 @Controller('users')
@@ -31,6 +32,13 @@ export class UserController {
   @ApiSuccessResponse(UserResponseDto,201)
   @ApiFailureResponse(400,'Invalid request')
   @ApiFailureResponse(403,'Forbidden Resources')
+  @ApiFailureResponse(429, 'Too many requests. Rate limit exceeded')
+  @Throttle({
+    default:{
+      limit: 5,
+      ttl: 60_000
+    }
+  })
   createGateOperator(
     @Body(
       new ParseArrayPipe({
@@ -46,8 +54,15 @@ export class UserController {
   @ApiOperation({
     summary: 'Create a user',
   })
+  @Throttle({
+    default:{
+      limit: 5,
+      ttl: 60_000
+    }
+  })
   @ApiSuccessResponse(UserResponseDto,201)
   @ApiFailureResponse(400,'Invalid request')
+  @ApiFailureResponse(429, 'Too many requests. Rate limit exceeded')
   create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
@@ -57,8 +72,15 @@ export class UserController {
   @ApiOperation({
     summary: 'Login as user',
   })
+  @Throttle({
+    default:{
+      limit: 5,
+      ttl: 60_000
+    }
+  })
   @ApiSuccessResponse(PrimitiveType.STRING,200)
   @ApiFailureResponse(400,'Invalid request')
+  @ApiFailureResponse(429, 'Too many requests. Rate limit exceeded')
   login(@Body() login: LoginUserDto) {
     return this.userService.login(login);
   }

@@ -29,11 +29,18 @@ import { RefundModule } from './features/operational/refund/refund.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SseModule } from './features/sse/sse.module';
 import { R2StorageModule } from './r2/r2-storage/r2-storage.module';
+import { ThrottlerGuard, ThrottlerModule } from  '@nestjs/throttler'
 import { WalletModule } from './features/transaction/wallet/wallet.module';
 
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 60
+      }
+    ]),
     JwtModule.registerAsync({
       global: true,
       useFactory: () => ({
@@ -72,6 +79,10 @@ import { WalletModule } from './features/transaction/wallet/wallet.module';
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard
+    },
     {
       provide:APP_INTERCEPTOR,
       useClass:ResponseInterceptor
