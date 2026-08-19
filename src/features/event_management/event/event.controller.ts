@@ -81,8 +81,9 @@ export class EventController {
   @ApiOperation({ summary: 'Get event details by ID' })
   @ApiSuccessResponse(EventResponseDto)
   @ApiFailureResponse(404, 'Event not found')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.eventService.findOne(id);
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    const event = await this.eventService.findOne(id)
+    return this.eventService.toEventResponse(event);
   }
 
   @Patch(':id')
