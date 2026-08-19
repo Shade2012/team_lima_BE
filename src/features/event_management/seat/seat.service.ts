@@ -22,8 +22,8 @@ export class SeatService {
       throw new ForbiddenException('You do not have permission to manage seats for this event');
     }
 
-    if (!event.isSeated) {
-      throw new BadRequestException('Cannot create seats for a non-seated event');
+    if (!category.isSeated) {
+      throw new BadRequestException('Cannot create seats for a non-seated category');
     }
 
     const existingCount = await this.prisma.seat.count({

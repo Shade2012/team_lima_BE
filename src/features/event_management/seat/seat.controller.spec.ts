@@ -13,7 +13,7 @@ const mockService = {
 
 describe('SeatController', () => {
   let controller: SeatController;
-  const payload = new Payload('org-uuid-001', 'org', Role.ORGANIZER);
+  const payload = new Payload('org-uuid-001', 'org', Role.ORGANIZER, 0, 0);
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

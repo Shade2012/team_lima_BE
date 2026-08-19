@@ -4,7 +4,6 @@ export type EventWithImage = {
   name: string;
   imageKey: string | null;
   description: string | null;
-  isSeated: boolean;
   salesStartTime: Date;
   salesEndTime: Date;
   eventDate: Date;

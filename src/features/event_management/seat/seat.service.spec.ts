@@ -10,13 +10,13 @@ import { ForbiddenException, BadRequestException } from '@nestjs/common';
 const mockEvent = {
   id: 'event-uuid-001',
   organizerId: 'org-uuid-001',
-  isSeated: true,
 };
 
 const mockCategory = {
   id: 'cat-uuid-001',
   eventId: 'event-uuid-001',
   totalQuota: 100,
+  isSeated: true,
 };
 
 const mockPrisma = {
@@ -85,8 +85,8 @@ describe('SeatService', () => {
       await expect(service.bulkCreate({ categoryId: 'cat-uuid-001' }, payload)).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException if event is not seated', async () => {
-      mockEventService.findOne.mockResolvedValueOnce({ ...mockEvent, isSeated: false });
+    it('should throw BadRequestException if category is not seated', async () => {
+      mockCategoryService.findOne.mockResolvedValueOnce({ ...mockCategory, isSeated: false });
       await expect(service.bulkCreate({ categoryId: 'cat-uuid-001' }, payload)).rejects.toThrow(BadRequestException);
     });
   });

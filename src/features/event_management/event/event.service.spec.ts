@@ -3,13 +3,14 @@ import { EventService } from './event.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { Payload } from 'src/utils/payload';
+import { R2StorageService } from 'src/r2/r2-storage/r2-storage.service';
 import { Role, OrderStatus, TicketStatus } from '@prisma/client';
 
 const mockEvent = {
   id: '019146a0-7d1e-7abc-9a12-abcdef123456',
   organizerId: 'organizer-uuid-001',
   name: 'Test Concert',
-  isSeated: true,
+  description: 'Event Description',
   salesStartTime: new Date('2026-09-01T10:00:00.000Z'),
   salesEndTime: new Date('2026-09-15T23:59:59.000Z'),
   eventDate: new Date('2026-10-01T19:00:00.000Z'),
@@ -25,9 +26,13 @@ const mockPrismaService = {
     create: jest.fn().mockResolvedValue(mockEvent),
     findMany: jest.fn().mockResolvedValue([mockEvent]),
     findUnique: jest.fn().mockResolvedValue(mockEvent),
-    update: jest.fn().mockResolvedValue({ ...mockEvent, name: 'Updated Concert' }),
+    update: jest.fn().mockResolvedValue({ ...mockEvent, name: 'Updated Concert', description: 'Updated Description' }),
     delete: jest.fn().mockResolvedValue(mockEvent),
   },
+};
+
+const mockR2StorageService = {
+  setImage: jest.fn().mockResolvedValue('mock-image-key.jpg'),
 };
 
 describe('EventService', () => {
@@ -42,6 +47,7 @@ describe('EventService', () => {
       providers: [
         EventService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: R2StorageService, useValue: mockR2StorageService },
       ],
     }).compile();
 
@@ -59,7 +65,7 @@ describe('EventService', () => {
     it('should create an event with organizerId from payload', async () => {
       const dto = {
         name: 'Test Concert',
-        isSeated: true,
+        description: 'Test Concert',
         salesStartTime: new Date('2026-09-01T10:00:00.000Z'),
         salesEndTime: new Date('2026-09-15T23:59:59.000Z'),
         eventDate: new Date('2026-10-01T19:00:00.000Z'),
@@ -68,12 +74,14 @@ describe('EventService', () => {
         refundPercentage: 80,
       };
 
-      const result = await service.create(dto, organizerPayload);
+      const mockFile = {} as Express.Multer.File;
+      const result = await service.create(dto, organizerPayload, mockFile);
 
       expect(result).toEqual(mockEvent);
       expect(prisma.event.create).toHaveBeenCalledWith({
         data: {
           organizerId: 'organizer-uuid-001',
+          imageKey: 'mock-image-key.jpg',
           ...dto,
         },
       });
@@ -129,7 +137,8 @@ describe('EventService', () => {
           id: true,
           organizerId: true,
           name: true,
-          isSeated: true,
+          imageKey: true,
+          description: true,
           salesStartTime: true,
           salesEndTime: true,
           eventDate: true,

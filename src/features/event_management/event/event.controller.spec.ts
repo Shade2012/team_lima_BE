@@ -8,7 +8,7 @@ const mockEvent = {
   id: '019146a0-7d1e-7abc-9a12-abcdef123456',
   organizerId: 'organizer-uuid-001',
   name: 'Test Concert',
-  isSeated: true,
+  description: 'Event Description',
   salesStartTime: new Date('2026-09-01T10:00:00.000Z'),
   salesEndTime: new Date('2026-09-15T23:59:59.000Z'),
   eventDate: new Date('2026-10-01T19:00:00.000Z'),
@@ -43,6 +43,8 @@ const mockEventService = {
   update: jest.fn().mockResolvedValue({ ...mockEvent, name: 'Updated Concert' }),
   remove: jest.fn().mockResolvedValue(mockEvent),
   getEventStatistics: jest.fn().mockResolvedValue(mockEventStats),
+  toEventResponse: jest.fn().mockImplementation((event) => event),
+  toEventResponses: jest.fn().mockImplementation((events) => events),
 };
 
 describe('EventController', () => {
@@ -73,7 +75,7 @@ describe('EventController', () => {
     it('should call service.create with dto and payload', async () => {
       const dto = {
         name: 'Test Concert',
-        isSeated: true,
+        description: 'Mock Description',
         salesStartTime: new Date('2026-09-01T10:00:00.000Z'),
         salesEndTime: new Date('2026-09-15T23:59:59.000Z'),
         eventDate: new Date('2026-10-01T19:00:00.000Z'),
@@ -82,10 +84,11 @@ describe('EventController', () => {
         refundPercentage: 80,
       };
 
-      const result = await controller.create(dto, payload);
+      const mockFile = {} as Express.Multer.File;
+      const result = await controller.create(dto, mockFile, payload);
 
       expect(result).toEqual(mockEvent);
-      expect(service.create).toHaveBeenCalledWith(dto, payload);
+      expect(service.create).toHaveBeenCalledWith(dto, payload, mockFile);
     });
   });
 
@@ -129,10 +132,11 @@ describe('EventController', () => {
     it('should call service.update with id, dto, and payload', async () => {
       const dto = { name: 'Updated Concert' };
 
-      const result = await controller.update(mockEvent.id, dto, payload);
+      const mockFile = {} as Express.Multer.File;
+      const result = await controller.update(mockEvent.id, dto, mockFile, payload);
 
       expect(result.name).toBe('Updated Concert');
-      expect(service.update).toHaveBeenCalledWith(mockEvent.id, dto, payload);
+      expect(service.update).toHaveBeenCalledWith(mockEvent.id, dto, payload, mockFile);
     });
   });
 
