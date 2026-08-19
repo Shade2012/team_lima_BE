@@ -18,30 +18,30 @@ export class UserService {
     private readonly eventService: EventService
   ) {}
 
-  async createGateOperator(dto: CreateGateOperatorDto){
-    await this.eventService.findOne(dto.eventId)
-
-    const gate = await this.prisma.gate.findUnique({ where: { id: dto.gateId } });
-    if (!gate) {
-      throw new NotFoundException(`Gate with ID ${dto.gateId} not found`);
-    }
-    if (gate.eventId !== dto.eventId) {
-      throw new BadRequestException('Gate does not belong to the specified Event');
+  async createGateOperator(dtos: CreateGateOperatorDto[]){
+    if (dtos.length === 0) {
+      throw new BadRequestException('No gate operators provided');
     }
 
-    return this.create(
-      {
+    const eventIds = [
+      ...new Set(dtos.map((dto) => dto.eventId))
+    ]
+    const events = await this.eventService.findAllById(eventIds)
+    this.validateGateEvent(events, dtos)
+
+    return Promise.all(
+      dtos.map((dto) => 
+        this.create({
         email: dto.email,
         username: dto.username,
         password:dto.password,
         role: Role.GATE_OPERATOR,
-      },
-      dto.eventId,
-      dto.gateId
-    );
+        },dto.gateId)
+      )
+    )
   }
 
-  async create(dto: CreateUserDto, eventId?: string, gateId?: string) {
+  async create(dto: CreateUserDto, gateId? : string) {
     const model = this.prisma.user;
     const hash = await this.authService.hashPassword(dto.password)
     return model.create({
@@ -50,16 +50,7 @@ export class UserService {
         username:dto.username,
         role:dto.role,
         password:hash,
-        ...(eventId && {
-          events:{
-            connect:{
-              id: eventId
-            }
-          },
-        }),
-        ...(gateId && {
-          gate: { connect: { id: gateId } }
-        })
+        gateId: gateId
       },
       omit:{
         password:true
@@ -122,5 +113,28 @@ export class UserService {
       where: { id },
     });
     return true;
+  }
+
+  private validateGateEvent(
+    events: { id: string; gates: { id: string }[] }[],
+    dtos: CreateGateOperatorDto[],
+  ) {
+    const eventMap = new Map(
+      events.map((event) => [event.id, event]),
+    );
+
+    for (const dto of dtos) {
+      const event = eventMap.get(dto.eventId);
+      if (!event) {
+        throw new NotFoundException(`Event with ID ${dto.eventId} not found`)
+      }
+      const gateBelongsToEvent = event.gates.some(
+        (gate) => gate.id === dto.gateId,
+      )
+
+      if (!gateBelongsToEvent) {
+        throw new BadRequestException(`Gate ${dto.gateId} does not belong to event ${dto.eventId}`,);
+      }
+    }
   }
 }

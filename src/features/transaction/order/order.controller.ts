@@ -11,6 +11,7 @@ import { ApiSuccessResponse, PrimitiveType } from 'src/decorators/api-success-re
 import { OrderResponseDto } from './response/order-response.dto';
 import { ApiFailureResponse } from 'src/decorators/api-failure-response.decorator';
 import { CreateOrderResponseDto } from './response/create-order-response.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Orders')
 @Controller('orders')
@@ -26,7 +27,14 @@ export class OrderController {
   @ApiFailureResponse(404, 'Event not found')
   @ApiFailureResponse(404, 'One or more tickets not found')
   @ApiFailureResponse(404, 'Category not found')
+  @ApiFailureResponse(429, 'Too many requests. Rate limit exceeded')
   @Post('event/:eventId')
+  @Throttle({
+    default:{
+      limit: 10,
+      ttl: 60_000
+    }
+  })
   async create(
     @Param('eventId') eventId: string,
     @Body() createOrderDto: CreateOrderDto,

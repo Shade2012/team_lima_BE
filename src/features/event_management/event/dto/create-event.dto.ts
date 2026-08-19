@@ -30,6 +30,14 @@ export class CreateEventDto {
   description!: string;
 
   @ApiProperty({
+    type: 'file',
+    format: 'binary',
+    required: true,
+    description: 'Event image',
+  })
+  image?: any;
+
+  @ApiProperty({
     description: 'Ticket sales start time',
     example: '2026-09-01T10:00:00.000Z',
   })

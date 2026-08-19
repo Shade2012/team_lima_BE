@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { IsEmail, IsEnum, IsIn, IsNotEmpty, IsString, IsStrongPassword, ValidateIf } from 'class-validator';
-const AllowedRoles = [Role.CUSTOMER,Role. ORGANIZER]
+const AllowedRoles = [Role.CUSTOMER, Role. ORGANIZER]
 export class CreateUserDto {
   @ApiProperty({
     description: 'Unique username for the user',
@@ -46,7 +46,5 @@ export class CreateUserDto {
     message: `Role must be one of: ${Object.values(AllowedRoles).join(', ')}`,
   })
   role!: Role;
-
-
 }
 
