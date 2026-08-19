@@ -61,6 +61,25 @@ export class EventService {
     });
   }
 
+  async findAllById(ids: string[]) {
+    return this.prisma.event.findMany({
+      where: {
+        id:{
+          in: ids
+        }
+      },
+      orderBy: { eventDate: 'asc' },
+      select:{
+        id:true,
+        gates:{
+          select:{
+            id:true
+          }
+        }
+      }
+    });
+  }
+
   async findOne(id: string): Promise<EventWithCategories> {
     const event = await this.prisma.event.findUnique({
       where: { id },

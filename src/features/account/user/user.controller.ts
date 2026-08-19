@@ -45,7 +45,7 @@ export class UserController {
         items:CreateGateOperatorDto
       })
     ) createGateOperator: CreateGateOperatorDto[]) {
-    return this.userService.createGateOperator(createGateOperator[0]);
+    return this.userService.createGateOperator(createGateOperator);
   }
 
 

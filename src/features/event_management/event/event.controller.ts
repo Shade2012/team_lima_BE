@@ -87,6 +87,7 @@ export class EventController {
 
   @Patch(':id')
   @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
   @UserRoleExt(Role.ORGANIZER)
   @UseInterceptors(ImageUploadDefaultInterceptor())
   @ApiOperation({ summary: 'Update event (Organizer owner only)' })

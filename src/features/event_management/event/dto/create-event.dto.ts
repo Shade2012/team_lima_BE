@@ -30,6 +30,14 @@ export class CreateEventDto {
   description!: string;
 
   @ApiProperty({
+    type: 'file',
+    format: 'binary',
+    required: true,
+    description: 'Event image',
+  })
+  image?: any;
+
+  @ApiProperty({
     description: 'Whether this event uses a seated layout',
     example: true,
   })
