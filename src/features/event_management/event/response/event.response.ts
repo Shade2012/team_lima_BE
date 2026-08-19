@@ -16,9 +16,6 @@ export class EventResponseDto {
   @ApiProperty({ example: 'Lorem Ipsum' })
   description!: string;
 
-  @ApiProperty({ example: true })
-  isSeated!: boolean;
-
   @ApiProperty({ example: '2026-09-01T10:00:00.000Z' })
   salesStartTime!: string;
 

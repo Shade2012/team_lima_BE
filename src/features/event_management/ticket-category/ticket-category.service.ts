@@ -23,7 +23,7 @@ export class TicketCategoryService {
 
     let totalQuota = dto.totalQuota;
     
-    if (event.isSeated) {
+    if (dto.isSeated) {
       if (!dto.rows || !dto.columns) {
         throw new BadRequestException('Seated events must provide rows and columns for category');
       }
@@ -42,9 +42,10 @@ export class TicketCategoryService {
         price: dto.price,
         totalQuota: totalQuota,
         posIndex: dto.posIndex || 0,
-        rows: event.isSeated ? dto.rows : null,
-        columns: event.isSeated ? dto.columns : null,
-        blockedSeats: event.isSeated ? dto.blockedSeats || [] : [],
+        isSeated: dto.isSeated,
+        rows: dto.isSeated ? dto.rows : null,
+        columns: dto.isSeated ? dto.columns : null,
+        blockedSeats: dto.isSeated ? dto.blockedSeats || [] : [],
       },
     });
   }
@@ -152,7 +153,7 @@ export class TicketCategoryService {
     }
 
     if (dto.totalQuota !== undefined && dto.totalQuota < category.totalQuota) {
-      if (event.isSeated) {
+      if (category.isSeated) {
         const existingSeatsCount = await this.prisma.seat.count({
           where: { categoryId: id },
         });

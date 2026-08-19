@@ -33,7 +33,6 @@ model Event {
   name             String
   imageKey         String?          @map("image_key")
   description      String?          @map("description")
-  isSeated         Boolean          @map("is_seated")
   salesStartTime   DateTime         @map("sales_start_time")
   salesEndTime     DateTime         @map("sales_end_time")
   eventDate        DateTime         @map("event_date")
@@ -61,6 +60,7 @@ model TicketCategory {
   name       String
   price      Int
   totalQuota Int      @map("total_quota")
+  isSeated   Boolean  @default(false) @map("is_seated")
   posIndex   Int      @default(0) @map("pos_index")
   rows       Int?     @map("rows")
   columns       Int?     @map("columns")

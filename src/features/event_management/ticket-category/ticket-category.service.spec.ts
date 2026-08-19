@@ -12,6 +12,7 @@ const mockCategory = {
   name: 'VIP',
   price: 500000,
   totalQuota: 100,
+  isSeated: true,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -19,7 +20,6 @@ const mockCategory = {
 const mockEvent = {
   id: 'event-uuid-001',
   organizerId: 'org-uuid-001',
-  isSeated: true,
 };
 
 const mockPrisma = {
@@ -66,13 +66,13 @@ describe('TicketCategoryService', () => {
 
   describe('create', () => {
     it('should create category if organizer owns event', async () => {
-      const dto = { eventId: 'event-uuid-001', name: 'VIP', price: 500000, rows: 10, columns: 10 };
+      const dto = { eventId: 'event-uuid-001', name: 'VIP', price: 500000, rows: 10, columns: 10, isSeated: true };
       const result = await service.create(dto, payload);
       expect(result).toEqual(mockCategory);
     });
 
     it('should throw ForbiddenException if organizer does not own event', async () => {
-      await expect(service.create({ eventId: 'event-uuid-001', name: 'VIP', price: 500000, rows: 10, columns: 10 }, otherPayload)).rejects.toThrow(ForbiddenException);
+      await expect(service.create({ eventId: 'event-uuid-001', name: 'VIP', price: 500000, rows: 10, columns: 10, isSeated: true }, otherPayload)).rejects.toThrow(ForbiddenException);
     });
   });
 

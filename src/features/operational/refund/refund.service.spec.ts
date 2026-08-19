@@ -5,6 +5,7 @@ import { MockPgService } from '../../transaction/mock-pg/mock-pg.service';
 import { RedisService } from 'src/redis/type/commands';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OrderStatus, RefundStatus, TicketStatus, Role } from '@prisma/client';
+import { WalletService } from 'src/features/transaction/wallet/wallet.service';
 import { CreateRefundDto } from './dto/create-refund.dto';
 
 const mockPrismaService = {
@@ -33,6 +34,10 @@ const mockRedisService = {
   decrby: jest.fn(),
 };
 
+const mockWalletService = {
+  refundToWallet: jest.fn().mockResolvedValue(true),
+};
+
 describe('RefundService', () => {
   let service: RefundService;
 
@@ -43,6 +48,7 @@ describe('RefundService', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: MockPgService, useValue: mockMockPgService },
         { provide: RedisService, useValue: mockRedisService },
+        { provide: WalletService, useValue: mockWalletService },
       ],
     }).compile();
 
@@ -98,9 +104,8 @@ describe('RefundService', () => {
         status: RefundStatus.PENDING,
         amount: 50000,
         ticketId: 'ticket-1',
-        ticket: { status: TicketStatus.AVAILABLE, orderId: 'order-1', categoryId: 'cat-1' },
+        ticket: { status: TicketStatus.AVAILABLE, orderId: 'order-1', categoryId: 'cat-1', order: { customerId: 'cust-1' } },
       });
-      mockMockPgService.processRefund.mockResolvedValue({ providerRefundId: 'pg-ref-1' });
       
       mockPrismaService.refund.update.mockResolvedValue({ id: 'refund-1', status: RefundStatus.APPROVED });
       mockPrismaService.ticket.count.mockResolvedValue(0); // 0 active tickets left -> FULL_REFUND
@@ -108,7 +113,7 @@ describe('RefundService', () => {
       const result = await service.approveRefund('refund-1', 'admin-1');
 
       expect(result.status).toBe(RefundStatus.APPROVED);
-      expect(mockMockPgService.processRefund).toHaveBeenCalled();
+      expect(mockWalletService.refundToWallet).toHaveBeenCalled();
       expect(mockPrismaService.refund.update).toHaveBeenCalled();
       expect(mockPrismaService.ticket.update).toHaveBeenCalledWith({
         where: { id: 'ticket-1' },

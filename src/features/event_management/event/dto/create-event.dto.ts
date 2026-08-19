@@ -38,15 +38,6 @@ export class CreateEventDto {
   image?: any;
 
   @ApiProperty({
-    description: 'Whether this event uses a seated layout',
-    example: true,
-  })
-  @IsNotEmpty()
-  @Transform(({ value }) => value === 'true')
-  @IsBoolean()
-  isSeated!: boolean;
-
-  @ApiProperty({
     description: 'Ticket sales start time',
     example: '2026-09-01T10:00:00.000Z',
   })

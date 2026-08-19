@@ -8,6 +8,9 @@ import {
 } from '@nestjs/common';
 import { OrderStatus, TicketStatus } from '@prisma/client';
 
+import { PrismaService } from 'src/prisma/prisma.service';
+import { TicketService } from 'src/features/transaction/ticket/ticket.service';
+
 describe('AdmissionScansService', () => {
   let service: AdmissionScansService;
 
