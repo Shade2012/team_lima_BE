@@ -36,12 +36,12 @@ export class UserService {
         username: dto.username,
         password:dto.password,
         role: Role.GATE_OPERATOR,
-        })
+        },dto.gateId)
       )
     )
   }
 
-  async create(dto: CreateUserDto,) {
+  async create(dto: CreateUserDto, gateId? : string) {
     const model = this.prisma.user;
     const hash = await this.authService.hashPassword(dto.password)
     return model.create({
@@ -50,6 +50,7 @@ export class UserService {
         username:dto.username,
         role:dto.role,
         password:hash,
+        gateId: gateId
       },
       omit:{
         password:true
