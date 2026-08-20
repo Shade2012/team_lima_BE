@@ -7,6 +7,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { OrderStatus, RefundStatus, TicketStatus, Role } from '@prisma/client';
 import { WalletService } from 'src/features/transaction/wallet/wallet.service';
 import { CreateRefundDto } from './dto/create-refund.dto';
+import { TicketService } from '../../transaction/ticket/ticket.service';
 
 const mockPrismaService = {
   ticket: {
@@ -38,6 +39,10 @@ const mockWalletService = {
   refundToWallet: jest.fn().mockResolvedValue(true),
 };
 
+const mockTicketService = {
+  updateStatus: jest.fn(),
+};
+
 describe('RefundService', () => {
   let service: RefundService;
 
@@ -49,6 +54,7 @@ describe('RefundService', () => {
         { provide: MockPgService, useValue: mockMockPgService },
         { provide: RedisService, useValue: mockRedisService },
         { provide: WalletService, useValue: mockWalletService },
+        { provide: TicketService, useValue: mockTicketService },
       ],
     }).compile();
 
@@ -115,10 +121,12 @@ describe('RefundService', () => {
       expect(result.status).toBe(RefundStatus.APPROVED);
       expect(mockWalletService.refundToWallet).toHaveBeenCalled();
       expect(mockPrismaService.refund.update).toHaveBeenCalled();
-      expect(mockPrismaService.ticket.update).toHaveBeenCalledWith({
-        where: { id: 'ticket-1' },
-        data: { status: TicketStatus.REFUND },
-      });
+      expect(mockTicketService.updateStatus).toHaveBeenCalledWith(
+        mockPrismaService,
+        TicketStatus.REFUND,
+        'ticket-1',
+        'admin-1'
+      );
       expect(mockPrismaService.order.update).toHaveBeenCalledWith({
         where: { id: 'order-1' },
         data: { status: OrderStatus.FULL_REFUND },

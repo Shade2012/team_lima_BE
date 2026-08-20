@@ -1,11 +1,11 @@
+import 'dotenv/config';
 import { PrismaClient, Role } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
 
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg({
+  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+});
 const prisma = new PrismaClient({ adapter });
 
 const CUSTOMER_ID = '019146a0-0000-7abc-0000-c00000000001';
@@ -16,13 +16,21 @@ const CAT_FESTIVAL_ID = '019146a0-0000-7abc-0000-cb0000000001';
 
 async function main() {
   console.log('Clearing old data...');
-  await prisma.refund.deleteMany();
+  
+  await prisma.walletTransaction.deleteMany();
+  await prisma.admissionScan.deleteMany();
   await prisma.ticketLog.deleteMany();
+  await prisma.refund.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.ticket.deleteMany();
-  await prisma.order.deleteMany();
   await prisma.seat.deleteMany();
+  await prisma.order.deleteMany();
+  
+  await prisma.user.updateMany({ data: { gateId: null } });
+  
+  await prisma.gate.deleteMany();
   await prisma.ticketCategory.deleteMany();
+  await prisma.wallet.deleteMany();
   await prisma.event.deleteMany();
   await prisma.user.deleteMany();
 
@@ -36,6 +44,11 @@ async function main() {
       username: 'customer1',
       password: hashedPassword, 
       role: Role.CUSTOMER,
+      wallet: {
+        create: {
+          balance: 1000000, 
+        }
+      }
     },
   });
 
@@ -46,6 +59,11 @@ async function main() {
       username: 'organizer1',
       password: hashedPassword,
       role: Role.ORGANIZER,
+      wallet: {
+        create: {
+          balance: 0,
+        }
+      }
     },
   });
 

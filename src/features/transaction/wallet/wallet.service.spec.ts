@@ -72,7 +72,7 @@ describe('WalletService', () => {
       expect(result).toEqual(updatedWallet);
       expect(mockPrismaService.wallet.update).toHaveBeenCalledWith({
         where: { id: '1' },
-        data: { balance: 11000 },
+        data: { balance: { increment: 10000 } },
       });
       expect(mockPrismaService.walletTransaction.create).toHaveBeenCalledWith({
         data: {
