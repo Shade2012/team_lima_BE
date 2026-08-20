@@ -1,0 +1,58 @@
+name: Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+
+      # Secrets (Settings → Secrets and variables → Actions → Secrets)
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SALT: ${{ secrets.SALT }}
+      JWT_CONSTANT: ${{ secrets.JWT_CONSTANT }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      # Variables (Settings → Secrets and variables → Actions → Variables)
+      # NOTE: REDIS_HOST here should be "localhost" — this is CI's own
+      # throwaway Redis service container, unrelated to your Render Redis.
+      REDIS_HOST: ${{ vars.REDIS_HOST }}
+      REDIS_PORT: ${{ vars.REDIS_PORT }}
+      R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+      R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+      R2_DEV_URL: ${{ vars.R2_DEV_URL }}
+      R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
