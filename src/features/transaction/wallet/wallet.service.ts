@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { WalletTransactionType } from '@prisma/client';
+import { Prisma, WalletTransactionType } from '@prisma/client';
 
 @Injectable()
 export class WalletService {
@@ -39,7 +39,7 @@ export class WalletService {
 
       const updatedWallet = await tx.wallet.update({
         where: { id: wallet.id },
-        data: { balance: wallet.balance + amount },
+        data: { balance: { increment: amount } },
       });
 
       await tx.walletTransaction.create({
@@ -64,8 +64,12 @@ export class WalletService {
 
       const updatedWallet = await tx.wallet.update({
         where: { id: wallet.id },
-        data: { balance: wallet.balance - amount },
+        data: { balance: { decrement: amount } },
       });
+
+      if (updatedWallet.balance < 0) {
+        throw new BadRequestException('Saldo tidak mencukupi untuk pembayaran ini');
+      }
 
       await tx.walletTransaction.create({
         data: {
@@ -81,8 +85,8 @@ export class WalletService {
     });
   }
 
-  async refundToWallet(userId: string, amount: number, refundId: string) {
-    return this.prisma.$transaction(async (tx) => {
+  async refundToWallet(userId: string, amount: number, refundId: string, externalTx?: Prisma.TransactionClient) {
+    const execute = async (tx: Prisma.TransactionClient) => {
       let wallet = await tx.wallet.findUnique({ where: { userId } });
       if (!wallet) {
         wallet = await tx.wallet.create({ data: { userId, balance: 0 } });
@@ -90,7 +94,7 @@ export class WalletService {
 
       const updatedWallet = await tx.wallet.update({
         where: { id: wallet.id },
-        data: { balance: wallet.balance + amount },
+        data: { balance: { increment: amount } },
       });
 
       await tx.walletTransaction.create({
@@ -104,7 +108,12 @@ export class WalletService {
       });
 
       return updatedWallet;
-    });
+    };
+
+    if (externalTx) {
+      return execute(externalTx);
+    }
+    return this.prisma.$transaction(execute);
   }
 
   async getTransactions(userId: string) {
