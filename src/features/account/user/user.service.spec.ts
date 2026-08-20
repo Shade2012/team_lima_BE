@@ -2,7 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UserService } from './user.service';
 import { AuthService } from '../auth/auth.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { EventService } from 'src/features/event_management/event/event.service';
 
@@ -10,62 +14,63 @@ describe('UserService', () => {
   let service: UserService;
 
   let prisma: {
-    user:{
+    user: {
       findUnique: jest.Mock;
       create: jest.Mock;
-    },
-    gate:{
+    };
+    gate: {
       findUnique: jest.Mock;
-    },
-  }
+    };
+  };
 
-  let authService:{
-    compare: jest.Mock,
-    createPayload: jest.Mock,
-    createToken: jest.Mock,
-    hashPassword:jest.Mock,
-  }
+  let authService: {
+    compare: jest.Mock;
+    createPayload: jest.Mock;
+    createToken: jest.Mock;
+    hashPassword: jest.Mock;
+  };
 
-  let eventService:{
-    findOne: jest.Mock;
-  }
+  let eventService: {
+    findAllById: jest.Mock;
+  };
 
   beforeEach(async () => {
     prisma = {
-      user:{
+      user: {
         findUnique: jest.fn(),
-        create: jest.fn()
+        create: jest.fn(),
       },
-      gate:{
-        findUnique: jest.fn()
-      }
-    }
+      gate: {
+        findUnique: jest.fn(),
+      },
+    };
+
     authService = {
       compare: jest.fn(),
       createPayload: jest.fn(),
       createToken: jest.fn(),
-      hashPassword: jest.fn()
-    }
+      hashPassword: jest.fn(),
+    };
 
     eventService = {
-      findOne: jest.fn(),
-    }
+      findAllById: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
         {
-          provide:AuthService,
-          useValue:authService,
+          provide: AuthService,
+          useValue: authService,
         },
         {
           provide: EventService,
-          useValue:eventService
+          useValue: eventService,
         },
         {
-          provide:PrismaService,
-          useValue:prisma
-        }
+          provide: PrismaService,
+          useValue: prisma,
+        },
       ],
     }).compile();
 
@@ -79,92 +84,76 @@ describe('UserService', () => {
   describe('login', () => {
     const user = {
       id: 'user-123',
-      email: 'john@xample.com',
+      email: 'john@example.com',
       username: 'john',
       password: 'hashed-password',
       role: Role.CUSTOMER,
     };
+
     const loginDto = {
-      email:'john@xample.com',
-      password: 'password123'
-    }
+      email: 'john@example.com',
+      password: 'password123',
+    };
 
     it('should login successfully get access token', async () => {
       const payload = {
         sub: user.id,
         email: user.email,
-        role: user.role
-      }
+        role: user.role,
+      };
 
       prisma.user.findUnique.mockResolvedValue(user);
-
       authService.compare.mockResolvedValue(true);
-
       authService.createPayload.mockReturnValue(payload);
-
-      authService.createToken.mockResolvedValue(
-        'access-token-123',
-      );
+      authService.createToken.mockResolvedValue('access-token-123');
 
       const result = await service.login(loginDto as any);
 
       expect(result).toBe('access-token-123');
 
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where:{
-          email:loginDto.email
-        }
-      })
+        where: {
+          email: loginDto.email,
+        },
+      });
 
       expect(authService.compare).toHaveBeenCalledWith(
         loginDto.password,
-        user.password
+        user.password,
       );
 
       expect(authService.createPayload).toHaveBeenCalledWith(user);
-
       expect(authService.createToken).toHaveBeenCalledWith(payload);
     });
 
     it('should throw UnauthorizedException email not found', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
+
       await expect(
         service.login(loginDto as any),
       ).rejects.toThrow(
-        new UnauthorizedException(
-          'Invalid email or password'
-        ),
+        new UnauthorizedException('Invalid email or password'),
       );
-      
+
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
         where: {
           email: loginDto.email,
         },
       });
+
       expect(authService.compare).not.toHaveBeenCalled();
       expect(authService.createPayload).not.toHaveBeenCalled();
       expect(authService.createToken).not.toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException when password is incorrect', async () => {
-      const user = {
-        id: 'user-123',
-        email: 'john@example.com',
-        username: 'john',
-        password: 'hashed-password',
-        role: Role.CUSTOMER,
-      };
-
       prisma.user.findUnique.mockResolvedValue(user);
-
       authService.compare.mockResolvedValue(false);
 
       await expect(
         service.login(loginDto as any),
       ).rejects.toThrow(
-        new UnauthorizedException(
-          'Invalid email or password',
-        ),
+        new UnauthorizedException('Invalid email or password'),
       );
 
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
@@ -178,12 +167,10 @@ describe('UserService', () => {
         user.password,
       );
 
-      // These should never happen because password is wrong
       expect(authService.createPayload).not.toHaveBeenCalled();
-
       expect(authService.createToken).not.toHaveBeenCalled();
     });
-  })
+  });
 
   describe('register public', () => {
     it('should create account', async () => {
@@ -203,21 +190,14 @@ describe('UserService', () => {
         role: dto.role,
       };
 
-      authService.hashPassword.mockResolvedValue(
-        hashedPassword,
-      );
-
-      prisma.user.create.mockResolvedValue(
-        createdUser,
-      );
+      authService.hashPassword.mockResolvedValue(hashedPassword);
+      prisma.user.create.mockResolvedValue(createdUser);
 
       const result = await service.create(dto as any);
 
       expect(result).toEqual(createdUser);
 
-      expect(
-        authService.hashPassword,
-      ).toHaveBeenCalledWith(
+      expect(authService.hashPassword).toHaveBeenCalledWith(
         dto.password,
       );
 
@@ -244,79 +224,47 @@ describe('UserService', () => {
       password: 'password123',
     };
 
-    it('should throw when gate is not found', async () => {
-      eventService.findOne.mockResolvedValue({
-        id: dto.eventId,
-      });
-
-      prisma.gate.findUnique.mockResolvedValue(null);
+    it('should throw when event is not found', async () => {
+      eventService.findAllById.mockResolvedValue([]);
 
       await expect(
-        service.createGateOperator(dto as any),
+        service.createGateOperator([dto] as any),
       ).rejects.toThrow(
         new NotFoundException(
-          `Gate with ID ${dto.gateId} not found`,
+          `Event with ID ${dto.eventId} not found`,
         ),
       );
 
-      expect(
-        eventService.findOne,
-      ).toHaveBeenCalledWith(dto.eventId);
+      expect(eventService.findAllById).toHaveBeenCalledWith([
+        dto.eventId,
+      ]);
 
-      expect(
-        prisma.gate.findUnique,
-      ).toHaveBeenCalledWith({
-        where: {
-          id: dto.gateId,
-        },
-      });
-
-      expect(
-        authService.hashPassword,
-      ).not.toHaveBeenCalled();
-
-      expect(
-        prisma.user.create,
-      ).not.toHaveBeenCalled();
+      expect(authService.hashPassword).not.toHaveBeenCalled();
+      expect(prisma.user.create).not.toHaveBeenCalled();
     });
 
     it('should throw when gate does not belong to the specified event', async () => {
-      eventService.findOne.mockResolvedValue({
-        id: dto.eventId,
-      });
-
-      prisma.gate.findUnique.mockResolvedValue({
-        id: dto.gateId,
-        eventId: 'another-event-123',
-      });
+      eventService.findAllById.mockResolvedValue([
+        {
+          id: dto.eventId,
+          gates: [],
+        },
+      ]);
 
       await expect(
-        service.createGateOperator(dto as any),
+        service.createGateOperator([dto] as any),
       ).rejects.toThrow(
         new BadRequestException(
-          'Gate does not belong to the specified Event',
+          `Gate ${dto.gateId} does not belong to event ${dto.eventId}`,
         ),
       );
 
-      expect(
-        eventService.findOne,
-      ).toHaveBeenCalledWith(dto.eventId);
+      expect(eventService.findAllById).toHaveBeenCalledWith([
+        dto.eventId,
+      ]);
 
-      expect(
-        prisma.gate.findUnique,
-      ).toHaveBeenCalledWith({
-        where: {
-          id: dto.gateId,
-        },
-      });
-
-      expect(
-        authService.hashPassword,
-      ).not.toHaveBeenCalled();
-
-      expect(
-        prisma.user.create,
-      ).not.toHaveBeenCalled();
+      expect(authService.hashPassword).not.toHaveBeenCalled();
+      expect(prisma.user.create).not.toHaveBeenCalled();
     });
   });
 });
