@@ -43,6 +43,7 @@ export class TicketController {
   //   return this.ticketService.remove(+id);
   // }
 
+  @Get(':id')
   @ApiBearerAuth()
   @UserRoleExt(Role.CUSTOMER)
   @ApiOperation({ summary: 'Get ticket detail by ID (Customer only)' })
