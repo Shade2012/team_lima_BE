@@ -8,6 +8,8 @@ import { RedisService } from 'src/redis/type/commands';
 import { Payload } from 'src/utils/payload';
 import { WalletService } from '../../transaction/wallet/wallet.service';
 
+import { TicketService } from '../../transaction/ticket/ticket.service';
+
 @Injectable()
 export class RefundService {
   constructor(
@@ -15,6 +17,7 @@ export class RefundService {
     private readonly mockPgService: MockPgService,
     private readonly redis: RedisService,
     private readonly walletService: WalletService,
+    private readonly ticketService: TicketService,
   ) {}
 
   async requestRefund(customerId: string, dto: CreateRefundDto) {
@@ -160,12 +163,6 @@ export class RefundService {
       throw new BadRequestException('Ticket is no longer available (might have been used). Cannot approve refund.');
     }
 
-    await this.walletService.refundToWallet(
-      refund.ticket.order.customerId, 
-      refund.amount, 
-      refund.id
-    );
-
     return this.prisma.$transaction(async (tx) => {
       const updatedRefund = await tx.refund.update({
         where: { id: refundId, status: RefundStatus.PENDING },
@@ -177,10 +174,19 @@ export class RefundService {
         },
       });
 
-      await tx.ticket.update({
-        where: { id: refund.ticketId },
-        data: { status: TicketStatus.REFUND },
-      });
+      await this.ticketService.updateStatus(
+        tx,
+        TicketStatus.REFUND,
+        refund.ticketId,
+        adminId,
+      );
+
+      await this.walletService.refundToWallet(
+        refund.ticket.order.customerId,
+        refund.amount,
+        refund.id,
+        tx,
+      );
 
       const orderId = refund.ticket.orderId;
       const activeTickets = await tx.ticket.count({
@@ -217,7 +223,7 @@ export class RefundService {
     }
 
     return this.prisma.refund.update({
-      where: { id: refundId },
+      where: { id: refundId, status: RefundStatus.PENDING },
       data: {
         status: RefundStatus.REJECTED,
         rejectReason,
