@@ -1,12 +1,53 @@
 import 'dotenv/config';
 import { PrismaClient, Role, OrderStatus, TicketStatus, PaymentStatus, PaymentMethod } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import * as bcrypt from 'bcrypt';
 
 const adapter = new PrismaPg({
   connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
 });
 const prisma = new PrismaClient({ adapter });
+
+// ==========================================
+// CLOUDFLARE R2 S3 CLIENT
+// ==========================================
+const s3Client = new S3Client({
+  region: 'auto',
+  endpoint: process.env.R2_DEV_URL,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+  },
+});
+const bucketName = process.env.R2_BUCKET_NAME || 'compfest-18-capstone';
+
+async function uploadImageToR2(sourceUrl: string, key: string): Promise<string> {
+  try {
+    const res = await fetch(sourceUrl);
+    if (!res.ok) {
+      console.warn(`  ⚠️ Failed to fetch image from ${sourceUrl}: ${res.statusText}. Using fallback key.`);
+      return key;
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: buffer,
+        ContentType: 'image/jpeg',
+        CacheControl: 'public, max-age=31536000, immutable',
+      }),
+    );
+    console.log(`  ✓ Uploaded to R2: ${key}`);
+    return key;
+  } catch (err) {
+    console.warn(`  ⚠️ Could not upload to R2 (${err}). Keeping key: ${key}`);
+    return key;
+  }
+}
 
 // ==========================================
 // DETERMINISTIC TESTING UUIDs
@@ -253,7 +294,31 @@ async function main() {
     },
   });
 
-  console.log('🎸 Seeding 9 Concert Events (Hari Ini, Besok, dan Mendatang)...');
+  console.log('🖼️ Uploading concert images to Cloudflare R2 Storage...');
+
+  const [
+    imgSoundfest,
+    imgColdplay,
+    imgBlackpink,
+    imgJoyland,
+    imgSynchronize,
+    imgDwp,
+    imgJavaJazz,
+    imgSheilaDewa,
+    imgErwinGutawa,
+  ] = await Promise.all([
+    uploadImageToR2('https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80', 'events/seed-soundfest-2026.jpg'),
+    uploadImageToR2('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80', 'events/seed-coldplay-2026.jpg'),
+    uploadImageToR2('https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80', 'events/seed-blackpink-2026.jpg'),
+    uploadImageToR2('https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80', 'events/seed-joyland-2026.jpg'),
+    uploadImageToR2('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80', 'events/seed-synchronize-2026.jpg'),
+    uploadImageToR2('https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=80', 'events/seed-dwp-2026.jpg'),
+    uploadImageToR2('https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&w=1200&q=80', 'events/seed-javajazz-2026.jpg'),
+    uploadImageToR2('https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=1200&q=80', 'events/seed-sheila-dewa-2026.jpg'),
+    uploadImageToR2('https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=1200&q=80', 'events/seed-erwingutawa-2026.jpg'),
+  ]);
+
+  console.log('🎸 Seeding 9 Concert Events into database...');
 
   // Dynamic Dates
   const now = new Date();
@@ -302,7 +367,7 @@ async function main() {
       organizerId: ORGANIZER_1_ID,
       name: 'Soundfest Jakarta 2026 - Live Today',
       description: 'Festival musik live spektakuler hari ini dengan penampilan band indie rock, pop papan atas, dan tata panggung megah berkelas internasional.',
-      imageKey: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80',
+      imageKey: imgSoundfest,
       salesStartTime: getPastDate(14),
       salesEndTime: new Date(todayNight.getTime() - 2 * 60 * 60 * 1000), // Today 17:00
       eventDate: todayNight, // Today 19:00
@@ -319,7 +384,7 @@ async function main() {
       organizerId: ORGANIZER_1_ID,
       name: 'Coldplay: Music of the Spheres World Tour - Live Tomorrow Night',
       description: 'Konser tur dunia legendaris Coldplay besok malam di Gelora Bung Karno dengan keajaiban pertunjukan visual, kembang api, dan gelang LED warna-warni.',
-      imageKey: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
+      imageKey: imgColdplay,
       salesStartTime: getPastDate(7),
       salesEndTime: tomorrowSalesEnd, // BESOK 18:00 WIB
       eventDate: tomorrowNight,       // BESOK 20:00 WIB
@@ -336,7 +401,7 @@ async function main() {
       organizerId: ORGANIZER_1_ID,
       name: 'BLACKPINK: Born Pink Encore in Jakarta 2026',
       description: 'Sensasi K-Pop dunia BLACKPINK kembali menghadirkan panggung spektakuler dengan visual serba pink, laser dinamis, dan koreografi berenergi tinggi.',
-      imageKey: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80',
+      imageKey: imgBlackpink,
       salesStartTime: getPastDate(10),
       salesEndTime: getFutureDate(28),
       eventDate: getFutureDate(30),
@@ -356,7 +421,7 @@ async function main() {
       organizerId: ORGANIZER_2_ID,
       name: 'Joyland Festival Jakarta 2026 - Day 1 Live Today',
       description: 'Festival musik multi-genre bernuansa asri dengan penampilan artis indie-folk lokal & internasional, instalasi seni interaktif, dan kuliner pilihan.',
-      imageKey: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80',
+      imageKey: imgJoyland,
       salesStartTime: getPastDate(14),
       salesEndTime: new Date(todayAfternoon.getTime() - 1 * 60 * 60 * 1000), // Today 15:00
       eventDate: todayAfternoon, // Today 16:00
@@ -373,7 +438,7 @@ async function main() {
       organizerId: ORGANIZER_2_ID,
       name: 'Synchronize Fest 2026: Bhinneka Tunggal Musik',
       description: 'Pesta akbar musik Indonesia lintas generasi dan genre: pop, rock, dangdut kontemporer, hip-hop, hingga musik tradisi modern.',
-      imageKey: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80',
+      imageKey: imgSynchronize,
       salesStartTime: getPastDate(5),
       salesEndTime: getFutureDate(13),
       eventDate: getFutureDate(14),
@@ -390,7 +455,7 @@ async function main() {
       organizerId: ORGANIZER_2_ID,
       name: 'Djakarta Warehouse Project (DWP) 2026',
       description: 'Festival musik elektronik terbesar di Asia dengan Garuda Land stage legendaris, jajaran top DJ dunia, tata cahaya laser, dan pyro spektakuler.',
-      imageKey: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=80',
+      imageKey: imgDwp,
       salesStartTime: getPastDate(10),
       salesEndTime: getFutureDate(43),
       eventDate: getFutureDate(45),
@@ -410,7 +475,7 @@ async function main() {
       organizerId: ORGANIZER_3_ID,
       name: 'Jakarta International Java Jazz Festival 2026',
       description: 'Perhelatan musik jazz termegah di kawasan Asia Tenggara yang menampilkan maestro jazz dunia, soul kontemporer, dan kolaborasi musisi legendaris.',
-      imageKey: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&w=1200&q=80',
+      imageKey: imgJavaJazz,
       salesStartTime: getPastDate(15),
       salesEndTime: getFutureDate(2),
       eventDate: getFutureDate(3),
@@ -427,7 +492,7 @@ async function main() {
       organizerId: ORGANIZER_3_ID,
       name: 'Konser 30 Tahun Sheila On 7 & Dewa 19 - Satu Panggung',
       description: 'Momen bersejarah menyatukan dua legenda musik pop & rock terbesar Indonesia dalam satu panggung megah bernuansa nostalgia di Stadion Madya.',
-      imageKey: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=1200&q=80',
+      imageKey: imgSheilaDewa,
       salesStartTime: getPastDate(5),
       salesEndTime: getFutureDate(20),
       eventDate: getFutureDate(21),
@@ -444,7 +509,7 @@ async function main() {
       organizerId: ORGANIZER_3_ID,
       name: 'Erwin Gutawa Symphonic Pop Orchestra Live in Jakarta',
       description: 'Pergelaran musik simfoni megah 60 musisi orkestra yang membawakan mahakarya musik pop Indonesia dengan akustik kelas dunia di Aula Simfonia Jakarta.',
-      imageKey: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=1200&q=80',
+      imageKey: imgErwinGutawa,
       salesStartTime: getPastDate(2),
       salesEndTime: getFutureDate(58),
       eventDate: getFutureDate(60),
@@ -773,15 +838,15 @@ async function main() {
   console.log(`- Gate Op 3 (Java Jazz)          : operator3@example.com`);
   console.log('----------------------------------------------------------------');
   console.log('🎸 9 CONCERTS LIST:');
-  console.log(`1. [HARI INI] Soundfest Jakarta 2026           (Mulai 19:00 WIB) [ID: ${EVENT_1_ID}]`);
-  console.log(`2. [BESOK]    Coldplay World Tour Jakarta      (Mulai 20:00, Sales s.d. 18:00 WIB) [ID: ${EVENT_2_ID}]`);
-  console.log(`3. [HARI INI] Joyland Festival Jakarta 2026    (Mulai 16:00 WIB) [ID: ${EVENT_4_ID}]`);
-  console.log(`4. [+3 d]     Java Jazz Festival 2026          (Java Fest Prod)  [ID: ${EVENT_7_ID}]`);
-  console.log(`5. [+14 d]    Synchronize Fest 2026            (Ismaya Live)     [ID: ${EVENT_5_ID}]`);
-  console.log(`6. [+21 d]    Sheila On 7 & Dewa 19            (Java Fest Prod)  [ID: ${EVENT_8_ID}]`);
-  console.log(`7. [+30 d]    BLACKPINK Born Pink Encore       (PK Entertainment)[ID: ${EVENT_3_ID}]`);
-  console.log(`8. [+45 d]    Djakarta Warehouse Project (DWP) (Ismaya Live)     [ID: ${EVENT_6_ID}]`);
-  console.log(`9. [+60 d]    Erwin Gutawa Symphonic Orchestra (Java Fest Prod)  [ID: ${EVENT_9_ID}]`);
+  console.log(`1. [HARI INI] Soundfest Jakarta 2026           (Mulai 19:00 WIB) [ID: ${EVENT_1_ID}] (R2: ${imgSoundfest})`);
+  console.log(`2. [BESOK]    Coldplay World Tour Jakarta      (Mulai 20:00, Sales s.d. 18:00 WIB) [ID: ${EVENT_2_ID}] (R2: ${imgColdplay})`);
+  console.log(`3. [HARI INI] Joyland Festival Jakarta 2026    (Mulai 16:00 WIB) [ID: ${EVENT_4_ID}] (R2: ${imgJoyland})`);
+  console.log(`4. [+3 d]     Java Jazz Festival 2026          (Java Fest Prod)  [ID: ${EVENT_7_ID}] (R2: ${imgJavaJazz})`);
+  console.log(`5. [+14 d]    Synchronize Fest 2026            (Ismaya Live)     [ID: ${EVENT_5_ID}] (R2: ${imgSynchronize})`);
+  console.log(`6. [+21 d]    Sheila On 7 & Dewa 19            (Java Fest Prod)  [ID: ${EVENT_8_ID}] (R2: ${imgSheilaDewa})`);
+  console.log(`7. [+30 d]    BLACKPINK Born Pink Encore       (PK Entertainment)[ID: ${EVENT_3_ID}] (R2: ${imgBlackpink})`);
+  console.log(`8. [+45 d]    Djakarta Warehouse Project (DWP) (Ismaya Live)     [ID: ${EVENT_6_ID}] (R2: ${imgDwp})`);
+  console.log(`9. [+60 d]    Erwin Gutawa Symphonic Orchestra (Java Fest Prod)  [ID: ${EVENT_9_ID}] (R2: ${imgErwinGutawa})`);
   console.log('----------------------------------------------------------------');
   console.log('🎟️ SAMPLE TICKETS UNTUK PENGUJIAN SCANNER:');
   console.log(`- Tiket HARI INI (Soundfest, Seat VIP-A-1) : ${TICKET_1_TODAY_ID} -> Login sebagai operator1@example.com untuk scan!`);
