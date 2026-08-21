@@ -72,10 +72,6 @@ export class R2StorageService{
     }
 
     getPublicUrl(key: string): string {
-        if (!key) return '';
-        if (key.startsWith('http://') || key.startsWith('https://')) {
-            return key;
-        }
         const publicUrl = process.env.R2_PUBLIC_URL!.replace(/\/$/, '');
         return `${publicUrl}/${key}`;
     }
