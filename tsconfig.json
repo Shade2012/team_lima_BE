@@ -15,6 +15,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": "./",
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
     "types": [
       "node",
       "multer",
